@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <M5Tough.h>
 #include <Adafruit_MLX90614.h>
+#include <SensirionI2CSfa3x.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -33,10 +34,15 @@
 #define NTP_UPDATE  1800  // interval in seconds between updates
 
 #define SKETCH_NAME "MLX90614Thermometer_MQTT"
-#define SKETCH_VER  "1.0b2"
+#define SKETCH_VER  "1.0b3"
 
 // IR Sensor
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+
+// SFA30 (Formaldehyd)
+SensirionI2CSfa3x SFA30;
+uint16_t sfa30Error;
+char sfa30ErrorMsg[256];
 
 // setup the ntp udp client
 WiFiUDP ntpUDP;
@@ -198,7 +204,7 @@ uint32_t getRuntimeMinutes() {
 
 // try to publish sensor reedings with given timeout 
 // will implicitly call mqtt_init()
-bool mqttSend(double objectTemp, double ambientTemp) {
+bool mqttSend(double objectTemp, double ambientTemp, int16_t hcho) {
     StaticJsonDocument<256> JSON;
     static char topic[64], buf[192];
 
@@ -206,6 +212,7 @@ bool mqttSend(double objectTemp, double ambientTemp) {
     JSON["systemId"] = getSystemID();;
     JSON["objectTemp"] = objectTemp;
     JSON["ambientTemp"] = ambientTemp;
+    JSON["formaldehyde"] = hcho / 5.0;
     JSON["rssi"] = WiFi.RSSI();
     JSON["runtime"] = getRuntimeMinutes();
     JSON["version"] = SKETCH_VER;
@@ -259,11 +266,21 @@ void setup() {
     M5.Lcd.setCursor(80   , 230);
     M5.Lcd.print("Emissivity: ");
     M5.Lcd.print(mlx.readEmissivity());
-    Serial.print("MLX90614 sensor emissivity ");
+    Serial.print("Sensor MLX90614 ready, emissivity ");
     Serial.println(mlx.readEmissivity());
     delay(2000);
   }
 
+  SFA30.begin(Wire);
+  sfa30Error = SFA30.startContinuousMeasurement();
+  if (sfa30Error) {
+    errorToString(sfa30Error, sfa30ErrorMsg, 256);
+    Serial.printf("ERROR: Failed to detect sensor SFA30 (%s)\n", sfa30ErrorMsg);
+  } else {
+    Serial.println("Sensor SFA30 ready, starting continuous measurement");
+    delay(2000);
+  }
+  
   wifiConnect();
   
   timeClient.begin();
@@ -298,6 +315,7 @@ void loop() {
   static double lastObjectTemp = 0.0, lastAmbientTemp = 0.0;
   double objectTemp, ambientTemp;
   uint16_t color, warncolor;
+  int16_t sfa30_hcho, sfa30_hum, sfa30_temp;
 
   if (millis() - lastReading > (READING_INTERVAL_SEC*1000)) {
     lastReading = millis(); 
@@ -330,6 +348,25 @@ void loop() {
       M5.Lcd.print("Ambiant: ");
       M5.Lcd.print(ambientTemp, 1);
       lastAmbientTemp = ambientTemp;
+      Serial.print("MLX90614: objectTemperature(");
+      Serial.print(objectTemp);
+      Serial.print(" C), ambientTemperature(");
+      Serial.print(ambientTemp);
+      Serial.println(" C)");
+
+      sfa30Error = SFA30.readMeasuredValues(sfa30_hcho, sfa30_hum, sfa30_temp);
+      if (sfa30Error) {
+        errorToString(sfa30Error, sfa30ErrorMsg, 256);
+        Serial.printf("ERROR: Failed to read from sensor SFA30 (%s)\n", sfa30ErrorMsg);
+      } else {
+        Serial.print("SFA30: Formaldehyde(");
+        Serial.print(sfa30_hcho / 5.0);
+        Serial.print(" ppb), Humidity(");
+        Serial.print(sfa30_hum / 100.0);
+        Serial.print(" %), Temperature(");
+        Serial.print(sfa30_temp / 200.0);
+        Serial.println(" C)");
+      }
 
       warncolor = color != RED ? RED : MAGENTA;
       if (WiFi.status() != WL_CONNECTED) {
@@ -345,7 +382,7 @@ void loop() {
         M5.Lcd.setFreeFont(&FreeSansBold12pt7b);
         M5.Lcd.setCursor(80, 230);
         M5.Lcd.print("MQTT publish");
-        if (!mqttSend(objectTemp, ambientTemp)) {
+        if (!mqttSend(objectTemp, ambientTemp, sfa30_hcho)) {
           mqttRetry = millis() + (MQTT_RETRY_SECS * 1000);
         } else {
           lastMqttPublish = millis();
