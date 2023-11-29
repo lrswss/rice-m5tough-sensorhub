@@ -63,5 +63,6 @@ uint8_t bme680_status();
 const char* bme680_accuracy();
 bool bme680_changed();
 void bme680_display();
+void bme680_dialogResetBSEC();
 
 #endif

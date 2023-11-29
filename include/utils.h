@@ -25,7 +25,6 @@
 #include "esp_system.h"
 #include "esp_ota_ops.h"
 #include "FreeSansBold36pt7b.h"
-#include "FreeSans8pt7b.h"
 #include "logo.h"
 
 void displayLogo();

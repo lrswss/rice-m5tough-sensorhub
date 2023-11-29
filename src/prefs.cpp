@@ -51,7 +51,6 @@ appPrefs_t prefs = {
     { 0 }
 };
 
-
 // check if a new firmware has just been flashed
 static void checkFirmwareUpdate() {
     uint8_t sha256[32], sha256Prev[32];

@@ -69,7 +69,7 @@ const uint8_t bsec_config_iaq[] = {
 };
 
 sensorReadings_t sensors;
-
+bool endButtonWaitLoop = false;
 
 static void bme680_loadState() {
     uint8_t newState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
@@ -123,6 +123,22 @@ static bool bme680_updateState() {
     return false;
 }
 
+
+static void eventResetBSEC(Event& e) {
+    endButtonWaitLoop = true;
+    if (!strcmp(e.objName(), "Yes")) {
+        M5.Lcd.fillScreen(BLUE);
+        M5.Lcd.setTextColor(WHITE);
+        M5.Lcd.setFreeFont(&FreeSans12pt7b);
+        M5.Lcd.setCursor(20, 40);
+        Serial.println("BME680: forcing reset of BSEC calibration data");
+        M5.Lcd.print("Reset BME680 calibration...");
+        prefs.bsecState[0] = 0; // invalidate bsec settings
+        bme680_loadState();
+        M5.Lcd.print("OK");
+        delay(2000);
+    }
+}
 
 // 0: error, 1: gas sensor warmup, 2: all sensor readings available
 uint8_t bme680_status() {
@@ -227,7 +243,7 @@ bool bme680_changed() {
 void bme680_display() {
     if (bme680_status() > 0) {
         if (bme680.runInStatus > 0) {
-            M5.Lcd.setCursor(170, 150);
+            M5.Lcd.setCursor(175, 150);
             M5.Lcd.print("VOC: ");  // shown right after HCHO on display
             M5.Lcd.print(sensors.bme680VOC, 1);
             M5.Lcd.setCursor(15, 180); // new line on display with IAQ/eCO2 readings
@@ -235,28 +251,57 @@ void bme680_display() {
             M5.Lcd.print(sensors.bme680Iaq);
             M5.Lcd.print("/");
             M5.Lcd.print(sensors.bme680IaqAccuracy);
-            M5.Lcd.setCursor(170, 180);
+            M5.Lcd.setCursor(175, 180);
             M5.Lcd.print("eCO2: ");
             M5.Lcd.print(sensors.bme680eCO2);
         } else {
-            M5.Lcd.setCursor(170, 150);
+            M5.Lcd.setCursor(175, 150);
             M5.Lcd.print("VOC: --.-"); // placed on display after HCHO reading
             M5.Lcd.setCursor(15, 180);
             M5.Lcd.print("IAQ: --/-");
-            M5.Lcd.setCursor(170, 180);
+            M5.Lcd.setCursor(175, 180);
             M5.Lcd.print("eCO2: ---");
         }
         bme680_updateState();
     } else {
-        M5.Lcd.setCursor(170, 150);
+        M5.Lcd.setCursor(175, 150);
         M5.Lcd.print("VOC: ERR"); // after HCHO
         M5.Lcd.setCursor(15, 180);
         M5.Lcd.print("IAQ: ERR");
-        M5.Lcd.setCursor(170, 180);
+        M5.Lcd.setCursor(175, 180);
         M5.Lcd.print("eCO2: ERR");
     }
 }
 
+
+void bme680_dialogResetBSEC() {
+    uint16_t timeout = 0;
+
+    if (!prefs.bsecState[0]) // no bsec state data saved so far
+        return;
+
+    ButtonColors onColor = {RED, WHITE, WHITE};
+    ButtonColors offColor = {DARKGREEN, WHITE, WHITE};
+    Button bYes(35, 130, 120, 60, false, "Yes", offColor, onColor, MC_DATUM);
+    Button bNo(165, 130, 120, 60, false, "No", offColor, onColor, MC_DATUM);
+
+    M5.Lcd.fillScreen(WHITE);
+    M5.Lcd.setTextColor(BLACK);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setCursor(45,70);
+    M5.Lcd.print("Reset BME680/BSEC");
+    M5.Lcd.setCursor(70,100);
+    M5.Lcd.print("calibration data?");
+
+    M5.Buttons.draw();
+    bYes.addHandler(eventResetBSEC, E_RELEASE);
+    bNo.addHandler(eventResetBSEC, E_RELEASE);
+    while (timeout++ < (DIALOG_TIMEOUT_SECS*1000) && !endButtonWaitLoop) {
+        M5.update();
+        delay(1);
+    }
+
+}
 
 // initialize MLX90614 IR temperature sensor on I2C bus
 bool mlx90614_init() {
@@ -411,7 +456,7 @@ bool sfa30_changed() {
 // display SFA30 readings on M5 Tought's OLED display
 void sfa30_display() {
     if (!sfa30_status()) {
-        M5.Lcd.setCursor(170, 105);
+        M5.Lcd.setCursor(175, 105);
         M5.Lcd.print("Humidity: ");
         if (bme680_status() > 0)
             M5.Lcd.print(sensors.bme680Hum);
@@ -420,7 +465,7 @@ void sfa30_display() {
         M5.Lcd.setCursor(15, 150);
         M5.Lcd.print("HCHO: ERR");
     } else {
-        M5.Lcd.setCursor(170, 105);
+        M5.Lcd.setCursor(175, 105);
         M5.Lcd.print("Humidity: ");
         if (bme680_status() > 0) // prefer BME680 humidity reading
             M5.Lcd.print(sensors.bme680Hum);

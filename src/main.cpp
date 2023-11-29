@@ -39,6 +39,7 @@ void setup() {
     mlx90614_init();
     sfa30_init();
     bme680_init();
+    bme680_dialogResetBSEC();
 
     wifi_connect();
     ntp_init();

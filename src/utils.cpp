@@ -37,16 +37,16 @@ void displayLogo() {
 
 // screen displayed during device startup sequence
 void displaySplashScreen() {
-    M5.Lcd.fillScreen(BLUE);
-    M5.Lcd.setFreeFont(&FreeSans24pt7b);
-    M5.Lcd.setTextColor(WHITE);
-    M5.Lcd.setCursor(45, 80);
+    M5.Lcd.fillScreen(WHITE);
+    M5.Lcd.setTextColor(BLACK);
+    M5.Lcd.setFreeFont(&FreeSansBold24pt7b);
+    M5.Lcd.setCursor(28, 80);
     M5.Lcd.print("Sensor Hub");
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(12,125);
     M5.Lcd.print("MLX90614/SFA30/BME680");
-    M5.Lcd.setFreeFont(&FreeSans8pt7b);
-    M5.Lcd.setCursor(110,160);
+    M5.Lcd.setFreeFont(&FreeSans9pt7b);
+    M5.Lcd.setCursor(100,160);
     M5.Lcd.printf("Firmware %s", SKETCH_VER);
 }
 

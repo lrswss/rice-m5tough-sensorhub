@@ -25,6 +25,7 @@ void wifi_connect() {
     uint8_t waitSecs = 0;
     
     M5.Lcd.fillScreen(BLUE);
+    M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(20,40);
     M5.Lcd.print("Connecting to WiFi..");
@@ -56,6 +57,7 @@ void wifi_connect() {
 
     if (WiFi.status() != WL_CONNECTED) {
         M5.Lcd.fillScreen(RED);
+        M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setCursor(30,70);
         M5.Lcd.print("Failed to connect to SSID");
         M5.Lcd.setTextDatum(MC_DATUM);

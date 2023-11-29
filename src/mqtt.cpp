@@ -68,6 +68,7 @@ void mqtt_init() {
     mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
     if (WiFi.status() == WL_CONNECTED) {
         M5.Lcd.fillScreen(BLUE);
+        M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
         M5.Lcd.setCursor(20,40);
         M5.Lcd.print("Connecting to MQTT...");
