@@ -22,6 +22,7 @@
 #include "rtc.h"
 #include "sensors.h"
 #include "utils.h"
+#include "prefs.h"
 #include "config.h"
 
 // setup wifi and mqtt client
@@ -35,10 +36,10 @@ bool mqtt_connect(bool startup) {
   if (!mqtt.connected()) {
     // generate pseudo random client id
     snprintf(clientid, sizeof(clientid), "M5Tough_%lx", random(0xffff));
-    Serial.printf("Connecting to MQTT Broker %s as %s...", MQTT_BROKER, clientid); 
+    Serial.printf("Connecting to MQTT Broker %s as %s...", prefs.mqttBroker, clientid);
 
 #ifdef MQTT_USER
-    if (mqtt.connect(clientid, MQTT_USER, MQTT_PASS)) {
+    if (mqtt.connect(clientid, prefs.mqttUsername, prefs.mqttPassword)) {
 #else
     if (mqtt.connect(clientid)) {
 #endif
@@ -52,7 +53,7 @@ bool mqtt_connect(bool startup) {
         M5.Lcd.setCursor(20,70);
         M5.Lcd.print("Failed to connect to MQTT");
         M5.Lcd.setTextDatum(MC_DATUM);
-        M5.Lcd.drawString(MQTT_BROKER, 160, 120, 4);
+        M5.Lcd.drawString(prefs.mqttBroker, 160, 120, 4);
         delay(5000);
       }
       return false;
@@ -64,7 +65,7 @@ bool mqtt_connect(bool startup) {
 
 
 void mqtt_init() {
-    mqtt.setServer(MQTT_BROKER, 1883);
+    mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
     if (WiFi.status() == WL_CONNECTED) {
         M5.Lcd.fillScreen(BLUE);
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
@@ -115,10 +116,12 @@ bool mqtt_publish() {
     if (mqtt_connect(false)) {
         snprintf(topic, sizeof(topic)-1, "%s", MQTT_TOPIC);
         if (mqtt.publish(topic, buf, s)) {
-            Serial.printf("MQTT: published %d bytes to %s on %s\n", s, MQTT_TOPIC, MQTT_BROKER);
+            Serial.printf("MQTT: published %d bytes to %s on %s\n", s,
+                prefs.mqttTopic, prefs.mqttBroker);
             return true;
         }
     }
-    Serial.printf("MQTT: failed to publish to %s on %s (error %d)\n", MQTT_TOPIC, MQTT_BROKER, mqtt.state());
+    Serial.printf("MQTT: failed to publish to %s on %s (error %d)\n",
+        prefs.mqttTopic, prefs.mqttBroker, mqtt.state());
     return false;
 }

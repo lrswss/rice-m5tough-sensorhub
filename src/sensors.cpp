@@ -20,6 +20,7 @@
 #include "config.h"
 #include "sensors.h"
 #include "utils.h"
+#include "prefs.h"
 
 // IR temparature sensor
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
@@ -70,60 +71,50 @@ const uint8_t bsec_config_iaq[] = {
 sensorReadings_t sensors;
 
 
-static bool bme680_loadState() {
-    uint8_t bsecState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
+static void bme680_loadState() {
+    uint8_t newState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
 
-    if (EEPROM.read(0) == BSEC_MAX_STATE_BLOB_SIZE) {
-        Serial.print("BME680: restore BSEC state from EEPROM (");
+    if (prefs.bsecState[0] == BSEC_MAX_STATE_BLOB_SIZE) {
+        Serial.print("BME680: restore BSEC state (");
         for (uint8_t i = 0; i < BSEC_MAX_STATE_BLOB_SIZE; i++) {
-            bsecState[i] = EEPROM.read(i + 1);
-            Serial.print(bsecState[i], HEX);
+            newState[i] = prefs.bsecState[i+1];
+            Serial.print(newState[i], HEX);
         }
         Serial.print(")...");
-        bme680.setState(bsecState);
-        if (bme680_status()) {
+        bme680.setState(newState);
+        if (bme680_status())
             Serial.println("OK");
-            return true;
-        } else {
-            Serial.println("failed!");
-            return false;
-        }
     } else {
-        Serial.println("BME680: no valid BSEC state, erasing EEPROM");
-        for (uint8_t i = 0; i < BSEC_MAX_STATE_BLOB_SIZE + 1; i++)
-            EEPROM.write(i, 0);
-        return EEPROM.commit();
+        Serial.println("BME680: no valid BSEC state");
+        memset(prefs.bsecState, 0, BSEC_MAX_STATE_BLOB_SIZE+1);
+        savePrefs(false);
     }
 }
 
 
-// Save current BSEC state to EEPROM if IAQ accuracy
+// Save current BSEC state to flash if IAQ accuracy
 // reaches 3 for the first time or peridically if
 // BME680_STATE_SAVE_PERIOD has passed
 static bool bme680_updateState() {
+    uint8_t currentState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
     static time_t lastStateUpdate = 0;
-    uint8_t bsecState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
 
     if ((lastStateUpdate == 0 && sensors.bme680IaqAccuracy >= 3) ||
         tsDiff(lastStateUpdate) >= BME680_STATE_SAVE_PERIOD) {
 
-        bme680.getState(bsecState);
+        bme680.getState(currentState);
         if (bme680_status()) {
-            Serial.print("BME680: writing BSEC state to EEPROM (");
-            for (uint8_t i = 0; i < BSEC_MAX_STATE_BLOB_SIZE ; i++) {
-                EEPROM.write(i + 1, bsecState[i]);
-                Serial.print(bsecState[i], HEX);
+            Serial.print("BME680: writing BSEC state to flash (");
+            prefs.bsecState[0] = BSEC_MAX_STATE_BLOB_SIZE;
+            for (uint8_t i = 0; i < BSEC_MAX_STATE_BLOB_SIZE; i++) {
+                Serial.print(currentState[i], HEX);
+                prefs.bsecState[i+1] = currentState[i];
             }
             Serial.print(")...");
-            EEPROM.write(0, BSEC_MAX_STATE_BLOB_SIZE);
-            if (EEPROM.commit()) {
-                Serial.println("OK");
-                lastStateUpdate = millis();
-                return true;
-            } else {
-                Serial.println("failed!");
-                return false;
-            }
+            savePrefs(false);
+            Serial.println("OK");
+            lastStateUpdate = millis();
+            return true;
         } else {
             Serial.println("BME680: reading BSEC state failed!");
             return false;
@@ -166,7 +157,6 @@ bool bme680_init() {
     bsec_version_t bsec_version;
     char statusMsg[64];
 
-    EEPROM.begin(BSEC_MAX_STATE_BLOB_SIZE + 1);
     bme680.begin(BME68X_I2C_ADDR_LOW, Wire);
     if (bme680_status()) {
         bme680.setConfig(bsec_config_iaq);

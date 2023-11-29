@@ -17,22 +17,35 @@
 
 ***************************************************************************/
 
-#ifndef _UTILS_H
-#define _UTILS_H
+#ifndef _PREFS_H
+#define _PREFS_H
 
 #include <Arduino.h>
-#include <M5Tough.h>
-#include "esp_system.h"
-#include "esp_ota_ops.h"
-#include "FreeSansBold36pt7b.h"
-#include "FreeSans8pt7b.h"
-#include "logo.h"
+#include <Preferences.h>
+#include "bsec.h"
 
-void displayLogo();
-void displaySplashScreen();
-void displayStatusMsg(const char msg[], uint16_t pos, bool bold, uint16_t colorText, uint16_t colorBackground);
-void printDegree(uint16_t color);
-time_t tsDiff(time_t tsMillis);
-String getSystemID();
+#define PARAMETER_SIZE 32
+
+extern Preferences nvs;
+
+typedef struct  {
+    uint8_t bsecState[BSEC_MAX_STATE_BLOB_SIZE+1];
+    uint16_t readingsInterval;
+    char mqttBroker[PARAMETER_SIZE+1];
+    uint16_t mqttBrokerPort;
+    char mqttTopic[PARAMETER_SIZE+1];
+    uint16_t mqttIntervalSecs;
+    bool mqttEnableAuth;
+    char mqttUsername[PARAMETER_SIZE+1];
+    char mqttPassword[PARAMETER_SIZE+1];
+    bool clearNVSUpdate;
+    uint8_t sha256[32];
+} appPrefs_t;
+
+extern Preferences nvs;
+extern appPrefs_t prefs;
+
+void startPrefs();
+void savePrefs(bool restart);
 
 #endif

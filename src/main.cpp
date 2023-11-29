@@ -23,6 +23,7 @@
 #include "mqtt.h"
 #include "rtc.h"
 #include "sensors.h"
+#include "prefs.h"
 
 
 void setup() {
@@ -33,6 +34,7 @@ void setup() {
 
     displayLogo();
     displaySplashScreen();
+    startPrefs();
 
     mlx90614_init();
     sfa30_init();

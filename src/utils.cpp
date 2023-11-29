@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include "utils.h"
+#include "prefs.h"
 
 // print fake ° symbol on display
 void printDegree(uint16_t color) {

@@ -20,13 +20,12 @@
 #ifndef _SENSORS_H
 #define _SENSORS_H
 
-#define BME680_STATE_SAVE_PERIOD  UINT32_C(240 * 60 * 1000)  // every 4 hours
+#define BME680_STATE_SAVE_PERIOD  UINT32_C(120 * 60 * 1000)  // every 2 hours
 
 #include <Arduino.h>
 #include <M5Tough.h>
 #include <Adafruit_MLX90614.h>
 #include <SensirionI2CSfa3x.h>
-#include <EEPROM.h>
 #include <bsec.h>
 
 typedef struct {

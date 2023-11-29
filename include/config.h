@@ -24,7 +24,8 @@
 #define WIFI_PASS "XXXXXXXXX"
 
 #define MQTT_PUBLISH_INTERVAL_SECS 15
-#define MQTT_BROKER "192.168.10.1"
+#define MQTT_BROKER_HOST "192.168.10.1"
+#define MQTT_BROKER_PORT 1883
 #define MQTT_TOPIC  "m5tough/state"
 //#define MQTT_USER "username"
 //#define MQTT_PASS "password"
@@ -38,6 +39,9 @@
 #define GASRESISTANCE_PUBLISH_THRESHOLD 5
 
 #define SKETCH_NAME "TEP-RICE-M5Tough-SensorHub"
-#define SKETCH_VER  "1.1b1"
+#define SKETCH_VER  "1.1b2"
+
+// clear NVS if new firmware is detected
+#define CLEAR_NVS_ON_UPDATE
 
 #endif
