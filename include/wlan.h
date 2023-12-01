@@ -23,11 +23,15 @@
 #include <Arduino.h>
 #include <M5Tough.h>
 #include <WiFi.h>
+#include <WiFiManager.h>
 
-#define WIFI_WAIT_SECS  10
 #define WIFI_RETRY_SECS 30
+#define WIFI_PORTAL_SSID "SensorHub"
+#define WIFI_MIN_RSSI 30
+#define WIFI_CONNECT_TIMEOUT_SECS 15
+#define WIFI_SETUP_TIMEOUT_SECS 300
 
-void wifi_connect();
 void wifi_reconnect();
+void wifi_dialogStartPortal();
 
 #endif

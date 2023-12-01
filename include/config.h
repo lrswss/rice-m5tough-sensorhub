@@ -20,9 +20,6 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-#define WIFI_SSID "XXXXXXXXX"
-#define WIFI_PASS "XXXXXXXXX"
-
 #define MQTT_PUBLISH_INTERVAL_SECS 15
 #define MQTT_BROKER_HOST "192.168.10.1"
 #define MQTT_BROKER_PORT 1883
@@ -37,12 +34,12 @@
 #define TEMP_PUBLISH_THRESHOLD 0.2
 #define HCHO_PUBLISH_TRESHOLD 1.0
 #define GASRESISTANCE_PUBLISH_THRESHOLD 5
-#define DIALOG_TIMEOUT_SECS 3
+#define DIALOG_TIMEOUT_SECS 5
 
 #define SKETCH_NAME "TEP-RICE-M5Tough-SensorHub"
-#define SKETCH_VER  "1.1b3"
+#define SKETCH_VER  "1.2b1"
 
-// clear NVS if new firmware is detected
+// clear NVS including WiFi credentials if new firmware is detected
 #define CLEAR_NVS_ON_UPDATE
 
 #endif

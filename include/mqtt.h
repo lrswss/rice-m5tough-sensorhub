@@ -29,7 +29,6 @@
 
 void mqtt_init();
 int mqtt_state();
-bool mqtt_connect(bool startup);
 bool mqtt_publish();
 
 #endif

@@ -29,7 +29,7 @@ void printDegree(uint16_t color) {
 
 
 void displayLogo() {
-    M5.Lcd.fillScreen(WHITE);
+    M5.Lcd.clearDisplay(WHITE);
     M5.Lcd.pushImage(5, 70, logoWidth, logoHeight, logo);
     delay(3000);
 }
@@ -37,7 +37,7 @@ void displayLogo() {
 
 // screen displayed during device startup sequence
 void displaySplashScreen() {
-    M5.Lcd.fillScreen(WHITE);
+    M5.Lcd.clearDisplay(WHITE);
     M5.Lcd.setTextColor(BLACK);
     M5.Lcd.setFreeFont(&FreeSansBold24pt7b);
     M5.Lcd.setCursor(28, 80);

@@ -69,7 +69,7 @@ const uint8_t bsec_config_iaq[] = {
 };
 
 sensorReadings_t sensors;
-bool endButtonWaitLoop = false;
+static bool endButtonWaitLoop = false;
 
 static void bme680_loadState() {
     uint8_t newState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
@@ -85,7 +85,7 @@ static void bme680_loadState() {
         if (bme680_status())
             Serial.println("OK");
     } else {
-        Serial.println("BME680: no valid BSEC state");
+        Serial.println("BME680: no previously saved BSEC state found");
         memset(prefs.bsecState, 0, BSEC_MAX_STATE_BLOB_SIZE+1);
         savePrefs(false);
     }
@@ -116,7 +116,7 @@ static bool bme680_updateState() {
             lastStateUpdate = millis();
             return true;
         } else {
-            Serial.println("BME680: reading BSEC state failed!");
+            Serial.println("BME680: failed to read BSEC state");
             return false;
         }
     }
@@ -127,12 +127,12 @@ static bool bme680_updateState() {
 static void eventResetBSEC(Event& e) {
     endButtonWaitLoop = true;
     if (!strcmp(e.objName(), "Yes")) {
-        M5.Lcd.fillScreen(BLUE);
+        M5.Lcd.clearDisplay(BLUE);
         M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
         M5.Lcd.setCursor(20, 40);
         Serial.println("BME680: forcing reset of BSEC calibration data");
-        M5.Lcd.print("Reset BME680 calibration...");
+        M5.Lcd.print("Reset BSEC data...");
         prefs.bsecState[0] = 0; // invalidate bsec settings
         bme680_loadState();
         M5.Lcd.print("OK");
@@ -142,18 +142,18 @@ static void eventResetBSEC(Event& e) {
 
 // 0: error, 1: gas sensor warmup, 2: all sensor readings available
 uint8_t bme680_status() {
-    if (bme680.bsecStatus < BSEC_OK) {
-        Serial.printf("ERROR: BSEC library returns code (%d)\n", bme680.bsecStatus);
+    if (bme680.status < BSEC_OK) {
+        Serial.printf("ERROR: BSEC library returns code (%d)\n", bme680.status);
         return 0;
-    } else if (bme680.bsecStatus > BSEC_OK) {
-        Serial.printf("WARNING: BSEC library returns code (%d)\n", bme680.bsecStatus);
+    } else if (bme680.status > BSEC_OK) {
+        Serial.printf("WARNING: BSEC library returns code (%d)\n", bme680.status);
     }
 
-    if (bme680.bme68xStatus < BME68X_OK) {
-        Serial.printf("ERROR: sensor returns code (%d)\n", bme680.bme68xStatus);
+    if (bme680.bme680Status < BME680_OK) {
+        Serial.printf("ERROR: sensor returns code (%d)\n", bme680.bme680Status);
         return 0;
-    } else if (bme680.bme68xStatus > BME68X_OK) {
-        Serial.printf("WARNING: sensor returns code (%d)\n", bme680.bme68xStatus);
+    } else if (bme680.bme680Status > BME680_OK) {
+        Serial.printf("WARNING: sensor returns code (%d)\n", bme680.bme680Status);
     }
 
     if (bme680.runInStatus < 1) // gas sensor warmup
@@ -173,7 +173,7 @@ bool bme680_init() {
     bsec_version_t bsec_version;
     char statusMsg[64];
 
-    bme680.begin(BME68X_I2C_ADDR_LOW, Wire);
+    bme680.begin(BME680_I2C_ADDR_PRIMARY, Wire);
     if (bme680_status()) {
         bme680.setConfig(bsec_config_iaq);
         if (!bme680_status()) {
@@ -186,15 +186,15 @@ bool bme680_init() {
         }
     }
     if (!bme680_status()) {
-        sprintf(statusMsg, "BME680 failed, error %d", bme680.bme68xStatus);
+        sprintf(statusMsg, "BME680 failed, error %d", bme680.bme680Status);
         displayStatusMsg(statusMsg, 20, false, WHITE, RED);
-        Serial.printf("ERROR: Failed to initialize sensor BME680");
+        Serial.printf("BME680: failed to initialize sensor");
         delay(4000);
         return false;
     } else {
         displayStatusMsg("Sensor BME680 ready", 40, false, WHITE, DARKGREEN);
         bsec_get_version(&bsec_version);
-        Serial.printf("Sensor BME680 ready, sample rate 3s, BSEC v%d.%d.%d.%d\n", bsec_version.major,
+        Serial.printf("BME680: sensor ready, sample rate 3s, BSEC v%d.%d.%d.%d\n", bsec_version.major,
             bsec_version.minor, bsec_version.major_bugfix, bsec_version.minor_bugfix);
         delay(2000);
         return true;
@@ -285,7 +285,7 @@ void bme680_dialogResetBSEC() {
     Button bYes(35, 130, 120, 60, false, "Yes", offColor, onColor, MC_DATUM);
     Button bNo(165, 130, 120, 60, false, "No", offColor, onColor, MC_DATUM);
 
-    M5.Lcd.fillScreen(WHITE);
+    M5.Lcd.clearDisplay(WHITE);
     M5.Lcd.setTextColor(BLACK);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(45,70);
@@ -300,19 +300,18 @@ void bme680_dialogResetBSEC() {
         M5.update();
         delay(1);
     }
-
 }
 
 // initialize MLX90614 IR temperature sensor on I2C bus
 bool mlx90614_init() {
     if (!mlx.begin()) {
-        displayStatusMsg("MLX90614 failed!", 55, false, WHITE, RED);
-        Serial.println("ERROR: Failed to detect sensor MLX90614");
+        displayStatusMsg("MLX90614 failed", 55, false, WHITE, RED);
+        Serial.println("MLX90614: failed to detect sensor");
         delay(4000);
         return false;
     } else {
         displayStatusMsg("Sensor MLX90614 ready", 30, false, WHITE, DARKGREEN);
-        Serial.print("Sensor MLX90614 ready, emissivity ");
+        Serial.print("MLX90614: sensor ready, emissivity ");
         Serial.println(mlx.readEmissivity());
         mlx90614_ready = true;
         delay(2000);
@@ -370,7 +369,7 @@ void mlx90614_display() {
     else if (sensors.mlxObjectTemp >= TEMP_THRESHOLD_GREEN)
         color = DARKGREEN;
   
-    M5.Lcd.fillScreen(color);
+    M5.Lcd.clearDisplay(color);
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSansBold36pt7b);
     M5.Lcd.setCursor(65, 70);
@@ -405,12 +404,12 @@ bool sfa30_init() {
         sprintf(statusMsg, "SFA30 failed, error %d", sfa30_error);
         displayStatusMsg(statusMsg, 30, false, WHITE, RED);
         errorToString(sfa30_error, sfa30_errormsg, 256);
-        Serial.printf("ERROR: Failed to initialize sensor SFA30, %s\n", sfa30_errormsg);
+        Serial.printf("SFA30: failed to initialize sensor, %s\n", sfa30_errormsg);
         delay(4000);
         return false;
     } else {
         displayStatusMsg("Sensor SFA30 ready", 50, false, WHITE, DARKGREEN);
-        Serial.println("Sensor SFA30 ready, starting continuous measurement");
+        Serial.println("SFA30: sensor ready, starting continuous measurement");
         sfa30_ready = true;
         delay(2000);
         return true;

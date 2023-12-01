@@ -19,60 +19,251 @@
 
 #include "config.h"
 #include "wlan.h"
+#include "utils.h"
+#include "prefs.h"
+#include "wlan.h"
+
+static bool updateSettings = false;
+static bool endButtonWaitLoop = false;
+static char ssid[32], psk[32];
 
 
-void wifi_connect() {
-    uint8_t waitSecs = 0;
-    
-    M5.Lcd.fillScreen(BLUE);
+// show message on display on failed WiFi connection attempt
+static void connectionFailed(const char* apname) {
+    if (!strlen(apname))
+        return;
+    M5.Lcd.clearDisplay(RED);
+    M5.Lcd.setTextColor(WHITE);
+    M5.Lcd.setCursor(30, 70);
+    M5.Lcd.print("Failed to connect to SSID");
+    M5.Lcd.setTextDatum(MC_DATUM);
+    M5.Lcd.drawString(apname, 160, 120, 4);
+    Serial.printf("WiFi: connection to SSID %s failed", apname);
+}
+
+
+// show message on display with details on established WiFi connection
+static void connectionSuccess() {
+    M5.Lcd.clearDisplay(BLUE);
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
-    M5.Lcd.setCursor(20,40);
-    M5.Lcd.print("Connecting to WiFi..");
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    M5.Lcd.setCursor(20, 40);
+    M5.Lcd.print("Connecting to WiFi...OK");
+    M5.Lcd.setCursor(20, 100);
+    M5.Lcd.print("WLAN: ");
+    M5.Lcd.println(WiFi.SSID());
+    M5.Lcd.setCursor(20, 130);
+    M5.Lcd.print("RSSI: ");
+    M5.Lcd.print(WiFi.RSSI());
+    M5.Lcd.println(" dBm");
+    M5.Lcd.setCursor(20, 160);
+    M5.lcd.print("IP: ");
+    M5.lcd.println(WiFi.localIP());
+    strlcpy(ssid, WiFi.SSID().c_str(), 32); // used by wifi_reconnect()
+    strlcpy(psk, WiFi.psk().c_str(), 32);
+}
 
-    while (waitSecs < WIFI_WAIT_SECS) {
-        if (WiFi.status() != WL_CONNECTED) {
-            M5.Lcd.print(".");
-            delay(1000);
-            waitSecs++;
-        } else {
-            M5.Lcd.print("OK");
-            M5.Lcd.setCursor(20,100);
-            M5.Lcd.print("SSID: ");
-            M5.Lcd.println(WiFi.SSID());
-            M5.Lcd.setCursor(20,130);
-            M5.Lcd.print("RSSI: ");
-            M5.Lcd.print(WiFi.RSSI());
-            M5.Lcd.println(" dBm");
-            M5.Lcd.setCursor(20,160);
-            M5.lcd.print("IP: ");
-            M5.lcd.println(WiFi.localIP());
-            Serial.printf("WiFi: connected to %s with IP ", WiFi.SSID().c_str());
-            Serial.println(WiFi.localIP());
-            delay(2000);
-            break;
-        }
+
+// create a random numeric password
+// new password is generated after restart/powerup
+static char* randomPassword() {
+    static char pass[7] = { 0 };
+
+    if (!strlen(pass))
+        sprintf(pass, "%ld", random(10000000,99999999));
+    return pass;
+}
+
+
+// callback function
+// show message on display with details on how to connect to config portal
+static void startConfigPortal(WiFiManager *wm) {
+    M5.Lcd.clearDisplay(BLUE);
+    M5.Lcd.setTextColor(WHITE);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setCursor(20, 40);
+    M5.Lcd.print("Start setup portal...");
+    M5.Lcd.setCursor(20, 100);
+    M5.Lcd.printf("WLAN: %s", wm->getConfigPortalSSID().c_str());
+    M5.Lcd.setCursor(20, 130);
+    M5.Lcd.printf("Password: %s", randomPassword());
+    M5.Lcd.setCursor(20, 160);
+    M5.Lcd.print("IP: 192.168.4.1");
+    Serial.printf("WiFi: start setup portal on SSID %s...\n", wm->getConfigPortalSSID().c_str());
+}
+
+
+// callback function
+// show message on display if config portal timeout was reached
+static void portalTimeout() {
+    M5.Lcd.clearDisplay(RED);
+    M5.Lcd.setTextColor(WHITE);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setCursor(20, 40);
+    M5.Lcd.print("Setup portal...timeout!");
+    Serial.println("WiFi: setup portal timeout");
+    delay(4000);
+}
+
+
+// callback function
+// triggers savePrefs() in wifi_manager()
+static void saveSettings() {
+    updateSettings = true;
+    Serial.println("Setup portal: save new settings");
+}
+
+
+// starts config portal if no WiFi credentials are available
+// if 'forcePortal' is true start config portal anyway
+static void wifi_manager(bool forcePortal) {
+    WiFiManager wm;
+    const char* menu[] = { "wifi", "param", "sep", "update", "restart" };
+    String apname = "SensorHub-" + getSystemID();
+    char mqttPortStr[8], intervalStr[4];
+
+    wm.setDebugOutput(true, "WiFi: ");
+    wm.setMinimumSignalQuality(WIFI_MIN_RSSI);
+    wm.setScanDispPerc(true);
+    wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SECS);
+    wm.setConfigPortalTimeout(WIFI_SETUP_TIMEOUT_SECS);
+    wm.setAPCallback(startConfigPortal);
+    wm.setSaveParamsCallback(saveSettings);
+    wm.setConfigPortalTimeoutCallback(portalTimeout);
+    wm.setTitle("SensorHub");
+    wm.setMenu(menu, 5);
+
+    sprintf(intervalStr, "%d", prefs.mqttIntervalSecs);
+    WiFiManagerParameter mqtt_interval("interval", "MQTT Publish Interval (secs)", intervalStr, 3);
+    WiFiManagerParameter mqtt_broker("broker", "MQTT Broker", prefs.mqttBroker, PARAMETER_SIZE);
+    sprintf(mqttPortStr, "%d", prefs.mqttBrokerPort);
+    WiFiManagerParameter mqtt_port("port", "MQTT Broker Port", mqttPortStr, 6);
+    WiFiManagerParameter mqtt_topic("topic", "MQTT Base Topic", prefs.mqttTopic, PARAMETER_SIZE);
+    WiFiManagerParameter mqtt_user("user", "MQTT Username", prefs.mqttUsername, PARAMETER_SIZE);
+    WiFiManagerParameter mqtt_pass("pass", "MQTT Password", prefs.mqttPassword, PARAMETER_SIZE);
+    WiFiManagerParameter mqtt_auth("auth", "MQTT Authentication", "1", 1, prefs.mqttEnableAuth ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
+    WiFiManagerParameter ntp_server("ntp", "NTP Server", prefs.ntpServer, PARAMETER_SIZE);
+
+    wm.addParameter(&mqtt_interval);
+    wm.addParameter(&mqtt_broker);
+    wm.addParameter(&mqtt_port);
+    wm.addParameter(&mqtt_topic);
+    wm.addParameter(&mqtt_user);
+    wm.addParameter(&mqtt_pass);
+    wm.addParameter(&mqtt_auth);
+    wm.addParameter(&ntp_server);
+
+    memset(ssid, 0, sizeof(ssid));
+    if (!wm.autoConnect(apname.c_str(), randomPassword())) {
+        connectionFailed(wm.getWiFiSSID().c_str());
+        delay(4000);
     }
 
-    if (WiFi.status() != WL_CONNECTED) {
-        M5.Lcd.fillScreen(RED);
-        M5.Lcd.setTextColor(WHITE);
-        M5.Lcd.setCursor(30,70);
-        M5.Lcd.print("Failed to connect to SSID");
-        M5.Lcd.setTextDatum(MC_DATUM);
-        M5.Lcd.drawString(WIFI_SSID, 160, 120, 4);
-        Serial.printf("WiFi: connection to SSID %s failed!\n", WIFI_SSID);
-        delay(5000);
+    if (forcePortal) {
+        wm.setConfigPortalTimeout(0);
+        wm.setConfigPortalBlocking(false);
+        wm.startConfigPortal(apname.c_str(), randomPassword());
+        while (!updateSettings) // wait until (new) settings are saved
+            wm.process();
+        wm.stopConfigPortal();
+    }
+
+    if (WiFi.isConnected()) {
+        connectionSuccess();
+        delay(2000);
+    }
+
+    if (updateSettings) {
+        prefs.mqttIntervalSecs = strtoumax(mqtt_interval.getValue(), NULL, 10);
+        strlcpy(prefs.mqttBroker, mqtt_broker.getValue(), PARAMETER_SIZE);
+        prefs.mqttBrokerPort = strtoumax(mqtt_port.getValue(), NULL, 10);
+        strlcpy(prefs.mqttTopic, mqtt_topic.getValue(), PARAMETER_SIZE);
+        prefs.mqttEnableAuth = *mqtt_auth.getValue();
+        strlcpy(prefs.mqttUsername, mqtt_user.getValue(), PARAMETER_SIZE);
+        strlcpy(prefs.mqttPassword, mqtt_pass.getValue(), PARAMETER_SIZE);
+        strlcpy(prefs.ntpServer, ntp_server.getValue(), PARAMETER_SIZE);
+        savePrefs(false);
     }
 }
 
 
+// button event handler
+static void eventStartPortal(Event& e) {
+    endButtonWaitLoop = true;
+    if (!strcmp(e.objName(), "Yes"))
+        wifi_manager(true);
+}
+
+
+// renders yes/no dialog on display to start configuration portal
+void wifi_dialogStartPortal() {
+    uint16_t timeout = 0;
+    wifi_config_t conf;
+
+    // check for saved WiFi credentials
+    // if missing, proceed to setup portal
+    WiFi.mode(WIFI_AP_STA);
+    esp_wifi_get_config(WIFI_IF_STA, &conf);
+    if (!strlen(reinterpret_cast<const char*>(conf.sta.ssid))) {
+        wifi_manager(false);
+        return;
+    }
+
+    ButtonColors onColor = {RED, WHITE, WHITE};
+    ButtonColors offColor = {DARKGREEN, WHITE, WHITE};
+    Button bYes(35, 130, 120, 60, false, "Yes", offColor, onColor, MC_DATUM);
+    Button bNo(165, 130, 120, 60, false, "No", offColor, onColor, MC_DATUM);
+
+    M5.Lcd.fillScreen(WHITE);
+    M5.Lcd.setTextColor(BLACK);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setCursor(55, 70);
+    M5.Lcd.print("Start setup portal to");
+    M5.Lcd.setCursor(50, 100);
+    M5.Lcd.print("(re)configure device?");
+
+    M5.Buttons.draw();
+    bYes.addHandler(eventStartPortal, E_RELEASE);
+    bNo.addHandler(eventStartPortal, E_RELEASE);
+    while (timeout++ < (DIALOG_TIMEOUT_SECS * 1000) && !endButtonWaitLoop) {
+        M5.update();
+        delay(1);
+    }
+    if (!endButtonWaitLoop)
+        wifi_manager(false);
+}
+
+
+// reconnect to WiFi if disconnect
+// should be called regulary in loop()
 void wifi_reconnect() {
     static time_t wifiReconnect = millis() + (WIFI_RETRY_SECS * 1000);
+    uint8_t wifiTimeout = 0;
+
+    if (!strlen(ssid))
+        return;
 
     if (millis() > wifiReconnect && WiFi.status() != WL_CONNECTED) {
         wifiReconnect = millis() + (WIFI_RETRY_SECS * 1000);
-        wifi_connect();
+        M5.Lcd.fillScreen(BLUE);
+        M5.Lcd.setTextColor(WHITE);
+        M5.Lcd.setFreeFont(&FreeSans12pt7b);
+        M5.Lcd.setCursor(20, 40);
+        M5.Lcd.print("Reconnecting to WiFi...");
+        Serial.printf("WiFi: reconnecting to SSID %s...", ssid);
+
+        WiFi.disconnect();
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(ssid, psk);
+        while (!WiFi.isConnected() && wifiTimeout++ < WIFI_CONNECT_TIMEOUT_SECS) {
+            Serial.print(".");
+            delay(500);
+        }
+        if (!WiFi.isConnected()) {
+            connectionFailed(ssid);
+            Serial.printf(", next attempt in %d seconds...\n", int(WIFI_RETRY_SECS));
+        } else {
+            connectionSuccess();
+        }
     }
 }

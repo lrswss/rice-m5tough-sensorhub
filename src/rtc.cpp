@@ -21,10 +21,11 @@
 #include "rtc.h"
 #include "utils.h"
 #include "wlan.h"
+#include "prefs.h"
 
 // setup the ntp udp client
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, NTP_ADDRESS, 0, (NTP_UPDATE * 1000));
+NTPClient timeClient(ntpUDP, prefs.ntpServer, 0, (NTP_UPDATE * 1000));
 
 // TimeZone Settings Details https://github.com/JChristensen/Timezone
 TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};
@@ -85,16 +86,18 @@ void displayDateTime() {
 
 void ntp_init() {
     timeClient.begin();
+    timeClient.setPoolServerName(prefs.ntpServer);
     if (WiFi.status() == WL_CONNECTED) {
-        M5.Lcd.fillScreen(BLUE);
+        M5.Lcd.clearDisplay(BLUE);
+        M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
         M5.Lcd.setCursor(20,40);
         M5.Lcd.print("Syncing time...");
-        Serial.printf("Syncing time with NTP server %s...", NTP_ADDRESS);
+        Serial.printf("Syncing time with NTP server %s...", prefs.ntpServer);
         timeClient.forceUpdate();
         M5.Lcd.print("OK");
         Serial.println("OK");
-        delay(1000);
+        delay(1500);
     }
 }
 

@@ -41,7 +41,7 @@ void setup() {
     bme680_init();
     bme680_dialogResetBSEC();
 
-    wifi_connect();
+    wifi_dialogStartPortal();
     ntp_init();
     mqtt_init();
 }

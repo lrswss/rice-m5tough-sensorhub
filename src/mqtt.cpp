@@ -30,7 +30,7 @@ WiFiClient espClient;
 PubSubClient mqtt(espClient);
 
 // connect to mqtt broker with random client id
-bool mqtt_connect(bool startup) {
+static bool mqtt_connect(bool startup) {
   static char clientid[16];
   
   if (!mqtt.connected()) {
@@ -49,7 +49,8 @@ bool mqtt_connect(bool startup) {
     } else {
       Serial.printf("failed (error %d)\n", mqtt.state());
       if (startup) {
-        M5.Lcd.fillScreen(RED);
+        M5.Lcd.clearDisplay(RED);
+        M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setCursor(20,70);
         M5.Lcd.print("Failed to connect to MQTT");
         M5.Lcd.setTextDatum(MC_DATUM);
@@ -67,14 +68,14 @@ bool mqtt_connect(bool startup) {
 void mqtt_init() {
     mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
     if (WiFi.status() == WL_CONNECTED) {
-        M5.Lcd.fillScreen(BLUE);
+        M5.Lcd.clearDisplay(BLUE);
         M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
         M5.Lcd.setCursor(20,40);
         M5.Lcd.print("Connecting to MQTT...");
         if (mqtt_connect(true)) {
             M5.Lcd.print("OK");
-            delay(1000);
+            delay(1500);
         }
     }
 }

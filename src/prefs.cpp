@@ -21,6 +21,8 @@
 #include "config.h"
 #include "mqtt.h"
 #include "utils.h"
+#include "rtc.h"
+#include "wlan.h"
 
 // use NVS to store settings to survive
 // a system reset (cold start) or reflash
@@ -43,6 +45,7 @@ appPrefs_t prefs = {
     "",
     "",
 #endif
+    NTP_ADDRESS,
 #ifdef CLEAR_NVS_ON_UPDATE
     true,
 #else
@@ -68,6 +71,9 @@ static void checkFirmwareUpdate() {
             if (prefs.clearNVSUpdate) {
                 Serial.print(", clear NVS");
                 nvs.clear();
+                // remove WiFi credentials as well
+                WiFi.enableSTA(true);
+                WiFi.disconnect(true, true);
             }
             Serial.println();
             // save new firmware checksum

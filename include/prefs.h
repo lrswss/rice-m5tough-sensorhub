@@ -28,7 +28,7 @@
 
 extern Preferences nvs;
 
-typedef struct  {
+typedef struct {
     uint8_t bsecState[BSEC_MAX_STATE_BLOB_SIZE+1];
     uint16_t readingsInterval;
     char mqttBroker[PARAMETER_SIZE+1];
@@ -38,6 +38,7 @@ typedef struct  {
     bool mqttEnableAuth;
     char mqttUsername[PARAMETER_SIZE+1];
     char mqttPassword[PARAMETER_SIZE+1];
+    char ntpServer[PARAMETER_SIZE+1];
     bool clearNVSUpdate;
     uint8_t sha256[32];
 } appPrefs_t;
