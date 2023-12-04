@@ -72,14 +72,17 @@ uint32_t getRuntimeMinutes() {
 
 
 void displayDateTime() {
+    static time_t lastTimeUpdate = 0;
     time_t epochTime = 0;
 
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED)
         timeClient.update();
+    if ((millis() - lastTimeUpdate) >= 1000 && (millis() - lastStatusMsg) > 1000) {
         epochTime = timeClient.getEpochTime();
         displayStatusMsg(getDateString(epochTime), 15, false, WHITE, BLUE);
         M5.Lcd.setCursor(215, 230);
         M5.Lcd.print(getTimeString(epochTime));
+        lastTimeUpdate = millis();
     }
 }
 

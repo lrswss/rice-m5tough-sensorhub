@@ -27,19 +27,29 @@
 //#define MQTT_USER "username"
 //#define MQTT_PASS "password"
 
+// uncomment to enable BLE server to broadcast sensor readings
+#define BLE_SERVER
+
 #define READING_INTERVAL_SEC 5
-#define TEMP_THRESHOLD_RED 30.0
-#define TEMP_THRESHOLD_ORANGE 25.0
-#define TEMP_THRESHOLD_GREEN 18.0
-#define TEMP_PUBLISH_THRESHOLD 0.2
-#define HCHO_PUBLISH_TRESHOLD 1.0
-#define GASRESISTANCE_PUBLISH_THRESHOLD 5
 #define DIALOG_TIMEOUT_SECS 5
 
-#define SKETCH_NAME "TEP-RICE-M5Tough-SensorHub"
-#define SKETCH_VER  "1.2b1"
+#define HCHO_PUBLISH_TRESHOLD 1.0
+#define TEMP_PUBLISH_THRESHOLD 0.2
+#define HUM_PUBLISH_THRESHOLD 1
+#define GASRESISTANCE_PUBLISH_THRESHOLD 5
 
-// clear NVS including WiFi credentials if new firmware is detected
+// MLX90614 IR thermometer
+#define TEMP_THRESHOLD_RED 30.0
+#define TEMP_THRESHOLD_ORANGE 25.0
+#define TEMP_THRESHOLD_GREEN 20.0
+#define TEMP_THRESHOLD_CYAN 15.0
+
+#define FIRMWARE_NAME "TEP-RICE-SensorHub"
+#define FIRMWARE_VERSION  "1.3b1"
+
+// clear NVS (and WiFi credentials) if new firmware is detected
 #define CLEAR_NVS_ON_UPDATE
+//#define CLEAR_WIFI_ON_UPDATE
+
 
 #endif

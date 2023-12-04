@@ -24,8 +24,13 @@
 #include <M5Tough.h>
 #include "esp_system.h"
 #include "esp_ota_ops.h"
+#include "esp_task_wdt.h"
 #include "FreeSansBold36pt7b.h"
 #include "logo.h"
+
+#define WATCHDOG_TIMEOUT_SEC 120
+#define MEMORY_DEBUG_INTERVAL_MIN 60
+extern time_t lastStatusMsg;
 
 void displayLogo();
 void displaySplashScreen();
@@ -33,5 +38,10 @@ void displayStatusMsg(const char msg[], uint16_t pos, bool bold, uint16_t colorT
 void printDegree(uint16_t color);
 time_t tsDiff(time_t tsMillis);
 String getSystemID();
+void startWatchdog();
+void stopWatchdog();
+#ifdef MEMORY_DEBUG_INTERVAL_MIN
+void memoryDebug();
+#endif
 
 #endif

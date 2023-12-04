@@ -39,6 +39,7 @@ typedef struct {
     char mqttUsername[PARAMETER_SIZE+1];
     char mqttPassword[PARAMETER_SIZE+1];
     char ntpServer[PARAMETER_SIZE+1];
+    bool bleServer;
     bool clearNVSUpdate;
     uint8_t sha256[32];
 } appPrefs_t;

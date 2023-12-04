@@ -136,7 +136,7 @@ static void eventResetBSEC(Event& e) {
         prefs.bsecState[0] = 0; // invalidate bsec settings
         bme680_loadState();
         M5.Lcd.print("OK");
-        delay(2000);
+        delay(1500);
     }
 }
 
@@ -186,17 +186,17 @@ bool bme680_init() {
         }
     }
     if (!bme680_status()) {
-        sprintf(statusMsg, "BME680 failed, error %d", bme680.bme680Status);
+        snprintf(statusMsg, sizeof(statusMsg), "BME680 failed, error %d", bme680.bme680Status);
         displayStatusMsg(statusMsg, 20, false, WHITE, RED);
         Serial.printf("BME680: failed to initialize sensor");
-        delay(4000);
+        delay(3000);
         return false;
     } else {
         displayStatusMsg("Sensor BME680 ready", 40, false, WHITE, DARKGREEN);
         bsec_get_version(&bsec_version);
         Serial.printf("BME680: sensor ready, sample rate 3s, BSEC v%d.%d.%d.%d\n", bsec_version.major,
             bsec_version.minor, bsec_version.major_bugfix, bsec_version.minor_bugfix);
-        delay(2000);
+        delay(1500);
         return true;
     }
 }
@@ -223,15 +223,19 @@ bool bme680_read() {
 // resistance readings have changed significantly
 bool bme680_changed() {
     static float lastGasRes = 0.0, lastTemp = 0.0;
+    uint8_t lastHum;
     bool changed = false;
 
     if (!bme680_status())
         return false;
-    if (abs(lastGasRes - sensors.bme680GasResistance) >= GASRESISTANCE_PUBLISH_THRESHOLD)
+    if (abs(lastGasRes - sensors.bme680GasResistance) >= GASRESISTANCE_PUBLISH_THRESHOLD) // kOhm
         changed = true;
     if (abs(lastTemp - sensors.bme680Temp) >= TEMP_PUBLISH_THRESHOLD)
         changed = true;
+    if (abs(lastHum - sensors.bme680Hum) >= HUM_PUBLISH_THRESHOLD)
+        changed = true;
 
+    lastHum = sensors.bme680Hum;
     lastTemp = sensors.bme680Temp;
     lastGasRes = sensors.bme680GasResistance;
 
@@ -265,11 +269,11 @@ void bme680_display() {
         bme680_updateState();
     } else {
         M5.Lcd.setCursor(175, 150);
-        M5.Lcd.print("VOC: ERR"); // after HCHO
+        M5.Lcd.print("VOC: n/a"); // first row after HCHO
         M5.Lcd.setCursor(15, 180);
-        M5.Lcd.print("IAQ: ERR");
+        M5.Lcd.print("IAQ: n/a"); // second row
         M5.Lcd.setCursor(175, 180);
-        M5.Lcd.print("eCO2: ERR");
+        M5.Lcd.print("eCO2: n/a");
     }
 }
 
@@ -307,14 +311,15 @@ bool mlx90614_init() {
     if (!mlx.begin()) {
         displayStatusMsg("MLX90614 failed", 55, false, WHITE, RED);
         Serial.println("MLX90614: failed to detect sensor");
-        delay(4000);
+        delay(3000);
         return false;
     } else {
         displayStatusMsg("Sensor MLX90614 ready", 30, false, WHITE, DARKGREEN);
         Serial.print("MLX90614: sensor ready, emissivity ");
         Serial.println(mlx.readEmissivity());
         mlx90614_ready = true;
-        delay(2000);
+        mlx90614_read(); // set mlx96014_error
+        delay(1500);
         return true;
     }
 }
@@ -360,15 +365,17 @@ bool mlx90614_changed() {
 void mlx90614_display() {
     uint16_t color = BLUE;
 
-    if (sensors.mlxObjectTemp <= TEMP_THRESHOLD_GREEN)
-        color = BLUE;
+    if (sensors.mlxObjectTemp <= TEMP_THRESHOLD_CYAN)
+        color = NAVY;
     else if (sensors.mlxObjectTemp >= TEMP_THRESHOLD_RED)
         color = RED;
     else if (sensors.mlxObjectTemp >= TEMP_THRESHOLD_ORANGE)
         color = ORANGE;
     else if (sensors.mlxObjectTemp >= TEMP_THRESHOLD_GREEN)
         color = DARKGREEN;
-  
+    else if (sensors.mlxObjectTemp >= TEMP_THRESHOLD_CYAN)
+        color = DARKCYAN;
+
     M5.Lcd.clearDisplay(color);
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSansBold36pt7b);
@@ -376,7 +383,7 @@ void mlx90614_display() {
     if (mlx90614_status())
         M5.Lcd.print(sensors.mlxObjectTemp, 1);
     else
-        M5.Lcd.print("ERR");
+        M5.Lcd.print("n/a");
     printDegree(color);
     M5.Lcd.print(" C");
   
@@ -387,7 +394,7 @@ void mlx90614_display() {
         if (mlx90614_status())
             M5.Lcd.print(sensors.mlxAmbientTemp, 1);
         else
-            M5.Lcd.print("ERR");
+            M5.Lcd.print("n/a");
     } else {
         M5.Lcd.print(sensors.bme680Temp, 1);
     }
@@ -401,17 +408,17 @@ bool sfa30_init() {
     SFA30.begin(Wire);
     sfa30_error = SFA30.startContinuousMeasurement();
     if (sfa30_error != 0) {
-        sprintf(statusMsg, "SFA30 failed, error %d", sfa30_error);
+        snprintf(statusMsg, sizeof(statusMsg), "SFA30 failed, error %d", sfa30_error);
         displayStatusMsg(statusMsg, 30, false, WHITE, RED);
         errorToString(sfa30_error, sfa30_errormsg, 256);
         Serial.printf("SFA30: failed to initialize sensor, %s\n", sfa30_errormsg);
-        delay(4000);
+        delay(3000);
         return false;
     } else {
         displayStatusMsg("Sensor SFA30 ready", 50, false, WHITE, DARKGREEN);
         Serial.println("SFA30: sensor ready, starting continuous measurement");
         sfa30_ready = true;
-        delay(2000);
+        delay(1500);
         return true;
     }
 }
@@ -460,9 +467,9 @@ void sfa30_display() {
         if (bme680_status() > 0)
             M5.Lcd.print(sensors.bme680Hum);
         else
-            M5.Lcd.print("ERR");
+            M5.Lcd.print("n/a");
         M5.Lcd.setCursor(15, 150);
-        M5.Lcd.print("HCHO: ERR");
+        M5.Lcd.print("HCHO: n/a");
     } else {
         M5.Lcd.setCursor(175, 105);
         M5.Lcd.print("Humidity: ");

@@ -24,14 +24,17 @@
 #include "rtc.h"
 #include "sensors.h"
 #include "prefs.h"
+#include "ble.h"
 
 
 void setup() {
     M5.begin(true, false, true, true, kMBusModeOutput);
     delay(1000);
-    Serial.printf("\nStarting Sketch %s v%s\n", SKETCH_NAME, SKETCH_VER);
+    Serial.println("(c) 2023 Fraunhofer IOSB");
+    Serial.printf("Firmware %s v%s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
     Serial.printf("Compiled on %s, %s\n", __DATE__, __TIME__);
 
+    startWatchdog();
     displayLogo();
     displaySplashScreen();
     startPrefs();
@@ -42,6 +45,7 @@ void setup() {
     bme680_dialogResetBSEC();
 
     wifi_dialogStartPortal();
+    ble_init();
     ntp_init();
     mqtt_init();
 }
@@ -109,6 +113,8 @@ void loop() {
                 Serial.println(" sensor not ready!");
             }
 
+            ble_notify();
+
             // make sure Wifi is up before trying to publish data
             if (WiFi.status() != WL_CONNECTED) {
                 displayStatusMsg("No WiFi connection", 65, false, WHITE, RED);
@@ -126,18 +132,22 @@ void loop() {
       
             // display error messag in status line if MQTT failed
             if (mqttRetry > 0 && millis() < mqttRetry) {
-                sprintf(statusMsg, "MQTT failed (error %d)", mqtt_state());
+                snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt_state());
                 displayStatusMsg(statusMsg, 45, false, WHITE, RED);
             }
         }
     }
 
     // update Date/Time in status line on bottom of the screen
-    if (millis() - lastTimeUpdate >= 1000 && !mqttRetry) {
-        lastTimeUpdate = millis();
+    if (!mqttRetry)
         displayDateTime();
-    }
 
     // check wifi connection and try to reconnect if down
     wifi_reconnect();
+
+#ifdef MEMORY_DEBUG_INTERVAL_MIN
+    memoryDebug();
+#endif
+
+    esp_task_wdt_reset(); // feed the dog...
 }

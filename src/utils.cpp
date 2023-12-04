@@ -20,6 +20,9 @@
 #include "config.h"
 #include "utils.h"
 #include "prefs.h"
+#include "rtc.h"
+
+time_t lastStatusMsg = 0;
 
 // print fake ° symbol on display
 void printDegree(uint16_t color) {
@@ -47,7 +50,7 @@ void displaySplashScreen() {
     M5.Lcd.print("MLX90614/SFA30/BME680");
     M5.Lcd.setFreeFont(&FreeSans9pt7b);
     M5.Lcd.setCursor(100,160);
-    M5.Lcd.printf("Firmware %s", SKETCH_VER);
+    M5.Lcd.printf("Firmware %s", FIRMWARE_VERSION);
 }
 
 
@@ -70,6 +73,7 @@ void displayStatusMsg(const char msg[], uint16_t pos, bool bold, uint16_t colorT
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(pos, 230);
     M5.Lcd.printf(msg);
+    lastStatusMsg = millis();
 }
 
 
@@ -82,3 +86,31 @@ String getSystemID() {
     sprintf(sysid, "%02X%02X%02X", mac[3], mac[4], mac[5]);
     return String(sysid);
 }
+
+
+// initialize and start watchdog for this thread
+void startWatchdog() {
+    esp_task_wdt_init(WATCHDOG_TIMEOUT_SEC, true);
+    esp_task_wdt_add(NULL);
+    Serial.printf("Watchdog timeout set to %d seconds\n", WATCHDOG_TIMEOUT_SEC);
+}
+
+
+// stop watchdog timer
+void stopWatchdog() {
+    esp_task_wdt_delete(NULL);
+    esp_task_wdt_deinit();
+    Serial.println(F("[WARNING] watchdog disabled"));
+}
+
+#ifdef MEMORY_DEBUG_INTERVAL_MIN
+void memoryDebug() {
+    static time_t lastMsgMillis = 0;
+
+    if ((millis() - lastMsgMillis) > (MEMORY_DEBUG_INTERVAL_MIN * 1000)) {
+        Serial.printf("Runtime %d minutes, FreeHeap %d bytes\n",
+            getRuntimeMinutes(), ESP.getFreeHeap());
+        lastMsgMillis = millis();
+    }
+}
+#endif

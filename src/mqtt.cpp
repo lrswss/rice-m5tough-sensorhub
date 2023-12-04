@@ -111,7 +111,7 @@ bool mqtt_publish() {
     }
     JSON["rssi"] = WiFi.RSSI();
     JSON["runtime"] = getRuntimeMinutes();
-    JSON["version"] = SKETCH_VER;
+    JSON["version"] = FIRMWARE_VERSION;
 
     memset(buf, 0, sizeof(buf));
     size_t s = serializeJson(JSON, buf);

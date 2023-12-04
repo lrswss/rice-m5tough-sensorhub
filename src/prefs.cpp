@@ -46,6 +46,11 @@ appPrefs_t prefs = {
     "",
 #endif
     NTP_ADDRESS,
+#ifdef BLE_SERVER
+    true,
+#else
+    false,
+#endif
 #ifdef CLEAR_NVS_ON_UPDATE
     true,
 #else
@@ -71,9 +76,12 @@ static void checkFirmwareUpdate() {
             if (prefs.clearNVSUpdate) {
                 Serial.print(", clear NVS");
                 nvs.clear();
+#ifdef CLEAR_WIFI_ON_UPDATE
                 // remove WiFi credentials as well
                 WiFi.enableSTA(true);
                 WiFi.disconnect(true, true);
+                Serial.print(" and WiFi credentials");
+#endif
             }
             Serial.println();
             // save new firmware checksum
@@ -110,6 +118,18 @@ void savePrefs(bool restart) {
 
     if (strlen(prefs.mqttUsername) <= 4 || strlen(prefs.mqttPassword) <= 6)
         prefs.mqttEnableAuth = false;
+
+    if (prefs.mqttIntervalSecs < 10)
+        prefs.mqttIntervalSecs = 10;
+
+    if (prefs.mqttIntervalSecs > 120)
+        prefs.mqttIntervalSecs = 120;
+
+    if (prefs.readingsInterval < 3)
+        prefs.readingsInterval = 3;
+
+    if (prefs.readingsInterval > 60)
+        prefs.readingsInterval = 60;
 
     nvs.putBytes("appPrefs", &prefs, sizeof(prefs));
     nvs.putBool("saved", true);

@@ -38,7 +38,7 @@ static void connectionFailed(const char* apname) {
     M5.Lcd.print("Failed to connect to SSID");
     M5.Lcd.setTextDatum(MC_DATUM);
     M5.Lcd.drawString(apname, 160, 120, 4);
-    Serial.printf("WiFi: connection to SSID %s failed", apname);
+    Serial.printf("WiFi: connection to SSID %s failed\n", apname);
 }
 
 
@@ -59,6 +59,10 @@ static void connectionSuccess() {
     M5.Lcd.setCursor(20, 160);
     M5.lcd.print("IP: ");
     M5.lcd.println(WiFi.localIP());
+    Serial.print("WiFi: connected with IP ");
+    Serial.print(WiFi.localIP());
+    Serial.printf(" (RSSI %d dbm)\n", WiFi.RSSI());
+
     strlcpy(ssid, WiFi.SSID().c_str(), 32); // used by wifi_reconnect()
     strlcpy(psk, WiFi.psk().c_str(), 32);
 }
@@ -67,7 +71,7 @@ static void connectionSuccess() {
 // create a random numeric password
 // new password is generated after restart/powerup
 static char* randomPassword() {
-    static char pass[7] = { 0 };
+    static char pass[8] = { 0 };
 
     if (!strlen(pass))
         sprintf(pass, "%ld", random(10000000,99999999));
@@ -89,7 +93,7 @@ static void startConfigPortal(WiFiManager *wm) {
     M5.Lcd.printf("Password: %s", randomPassword());
     M5.Lcd.setCursor(20, 160);
     M5.Lcd.print("IP: 192.168.4.1");
-    Serial.printf("WiFi: start setup portal on SSID %s...\n", wm->getConfigPortalSSID().c_str());
+    Serial.printf("WiFiManager: start setup portal on SSID %s...\n", wm->getConfigPortalSSID().c_str());
 }
 
 
@@ -101,8 +105,8 @@ static void portalTimeout() {
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(20, 40);
     M5.Lcd.print("Setup portal...timeout!");
-    Serial.println("WiFi: setup portal timeout");
-    delay(4000);
+    Serial.println("WiFiManager: setup portal timeout");
+    delay(3000);
 }
 
 
@@ -110,7 +114,7 @@ static void portalTimeout() {
 // triggers savePrefs() in wifi_manager()
 static void saveSettings() {
     updateSettings = true;
-    Serial.println("Setup portal: save new settings");
+    Serial.println("WiFiManager: save settings");
 }
 
 
@@ -122,7 +126,8 @@ static void wifi_manager(bool forcePortal) {
     String apname = "SensorHub-" + getSystemID();
     char mqttPortStr[8], intervalStr[4];
 
-    wm.setDebugOutput(true, "WiFi: ");
+    memset(ssid, 0, sizeof(ssid));
+    wm.setDebugOutput(false, "WiFi: ");
     wm.setMinimumSignalQuality(WIFI_MIN_RSSI);
     wm.setScanDispPerc(true);
     wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SECS);
@@ -130,6 +135,8 @@ static void wifi_manager(bool forcePortal) {
     wm.setAPCallback(startConfigPortal);
     wm.setSaveParamsCallback(saveSettings);
     wm.setConfigPortalTimeoutCallback(portalTimeout);
+    wm.setWebServerCallback(stopWatchdog);
+    wm.setSaveConfigCallback(startWatchdog);
     wm.setTitle("SensorHub");
     wm.setMenu(menu, 5);
 
@@ -143,6 +150,7 @@ static void wifi_manager(bool forcePortal) {
     WiFiManagerParameter mqtt_pass("pass", "MQTT Password", prefs.mqttPassword, PARAMETER_SIZE);
     WiFiManagerParameter mqtt_auth("auth", "MQTT Authentication", "1", 1, prefs.mqttEnableAuth ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
     WiFiManagerParameter ntp_server("ntp", "NTP Server", prefs.ntpServer, PARAMETER_SIZE);
+    WiFiManagerParameter ble_server("ble", "BLE Server", "1", 1, prefs.bleServer ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
 
     wm.addParameter(&mqtt_interval);
     wm.addParameter(&mqtt_broker);
@@ -152,25 +160,30 @@ static void wifi_manager(bool forcePortal) {
     wm.addParameter(&mqtt_pass);
     wm.addParameter(&mqtt_auth);
     wm.addParameter(&ntp_server);
+    wm.addParameter(&ble_server);
 
-    memset(ssid, 0, sizeof(ssid));
+    if (!forcePortal && wm.getWiFiSSID().length())
+        Serial.printf("WiFiManager: autoconnect to SSID %s\n", wm.getWiFiSSID().c_str());
+
     if (!wm.autoConnect(apname.c_str(), randomPassword())) {
         connectionFailed(wm.getWiFiSSID().c_str());
-        delay(4000);
+        delay(3000);
     }
 
     if (forcePortal) {
         wm.setConfigPortalTimeout(0);
         wm.setConfigPortalBlocking(false);
         wm.startConfigPortal(apname.c_str(), randomPassword());
-        while (!updateSettings) // wait until (new) settings are saved
+        while (!updateSettings) { // wait until (new) settings are saved
             wm.process();
+            esp_task_wdt_reset();
+        }
         wm.stopConfigPortal();
     }
 
     if (WiFi.isConnected()) {
         connectionSuccess();
-        delay(2000);
+        delay(1500);
     }
 
     if (updateSettings) {
@@ -182,6 +195,7 @@ static void wifi_manager(bool forcePortal) {
         strlcpy(prefs.mqttUsername, mqtt_user.getValue(), PARAMETER_SIZE);
         strlcpy(prefs.mqttPassword, mqtt_pass.getValue(), PARAMETER_SIZE);
         strlcpy(prefs.ntpServer, ntp_server.getValue(), PARAMETER_SIZE);
+        prefs.bleServer = *ble_server.getValue();
         savePrefs(false);
     }
 }
