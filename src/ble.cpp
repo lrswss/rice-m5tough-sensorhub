@@ -28,50 +28,46 @@
 // Setup characteristics and descriptors for sensor readings
 // use standard UUIDs for known characteristics
 // https://www.bluetooth.com/specifications/assigned-numbers/
-BLECharacteristic tempCharacteristic(BLEUUID((uint16_t)0x2A6E), BLE_PROPERTY_NOTIFY_READ);
-BLEDescriptor tempDescriptor(BLEUUID((uint16_t)0x2901));
+NimBLECharacteristic tempCharacteristic(BLEUUID((uint16_t)0x2A6E), BLE_PROPERTY_NOTIFY_READ);
+NimBLEDescriptor tempDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-BLECharacteristic humCharacteristic(BLEUUID((uint16_t)0x2A6F), BLE_PROPERTY_NOTIFY_READ);
-BLEDescriptor humDescriptor(BLEUUID((uint16_t)0x2901));
+NimBLECharacteristic humCharacteristic(BLEUUID((uint16_t)0x2A6F), BLE_PROPERTY_NOTIFY_READ);
+NimBLEDescriptor humDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-BLECharacteristic hchoCharacteristic(BLE_UUID_HCHO, BLE_PROPERTY_NOTIFY_READ);
-BLEDescriptor hchoDescriptor(BLEUUID((uint16_t)0x2901));
+NimBLECharacteristic hchoCharacteristic(BLE_UUID_HCHO, BLE_PROPERTY_NOTIFY_READ);
+NimBLEDescriptor hchoDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-BLECharacteristic eco2Characteristic(BLEUUID((uint16_t)0x2BE7), BLE_PROPERTY_NOTIFY_READ);
-BLEDescriptor eco2Descriptor(BLEUUID((uint16_t)0x2901));
+NimBLECharacteristic eco2Characteristic(BLEUUID((uint16_t)0x2BE7), BLE_PROPERTY_NOTIFY_READ);
+NimBLEDescriptor eco2Descriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-BLECharacteristic vocCharacteristic(BLEUUID((uint16_t)0x2B8C), BLE_PROPERTY_NOTIFY_READ);
-BLEDescriptor vocDescriptor(BLEUUID((uint16_t)0x2901));
+NimBLECharacteristic vocCharacteristic(BLEUUID((uint16_t)0x2B8C), BLE_PROPERTY_NOTIFY_READ);
+NimBLEDescriptor vocDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-BLECharacteristic iaqCharacteristic(BLE_UUID_IAQ, BLE_PROPERTY_NOTIFY_READ);
-BLEDescriptor iaqDescriptor(BLEUUID((uint16_t)0x2901));
+NimBLECharacteristic iaqCharacteristic(BLE_UUID_IAQ, BLE_PROPERTY_NOTIFY_READ);
+NimBLEDescriptor iaqDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 36);
 
-BLECharacteristic elaspedTimeCharacteristic(BLE_ELAPSEDTIME_UUID, BLECharacteristic::PROPERTY_READ);
-BLEDescriptor elaspedTimeDescriptor(BLEUUID((uint16_t)0x2901));
+NimBLECharacteristic elaspedTimeCharacteristic(BLE_ELAPSEDTIME_UUID, NIMBLE_PROPERTY::READ);
+NimBLEDescriptor elaspedTimeDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-BLECharacteristic modelCharacteristic(BLE_MODELNUMBER_UUID, BLECharacteristic::PROPERTY_READ);
-BLECharacteristic manufacturerCharacteristic(BLE_MANUFACTURER_UUID, BLECharacteristic::PROPERTY_READ);
-BLECharacteristic firmwareCharacteristic(BLE_FIRMWAREREVISION_UUID, BLECharacteristic::PROPERTY_READ);
+NimBLECharacteristic modelCharacteristic(BLE_MODELNUMBER_UUID, NIMBLE_PROPERTY::READ);
+NimBLECharacteristic manufacturerCharacteristic(BLE_MANUFACTURER_UUID, NIMBLE_PROPERTY::READ);
+NimBLECharacteristic firmwareCharacteristic(BLE_FIRMWAREREVISION_UUID, NIMBLE_PROPERTY::READ);
 
 static bool BLEdeviceConnected = false;
 
 // callbacks onConnect and onDisconnect
-class deviceCallbacks: public BLEServerCallbacks {
+class deviceCallbacks: public NimBLEServerCallbacks {
 
-    void onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
-        char clientAddress[18], statusMsg[32];
+    void onConnect(NimBLEServer* pServer, ble_gap_conn_desc *desc) {
+        char statusMsg[32];
 
-        sprintf(clientAddress, "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
-            param->connect.remote_bda[0],param->connect.remote_bda[1],
-            param->connect.remote_bda[2], param->connect.remote_bda[3],
-            param->connect.remote_bda[4],param->connect.remote_bda[5]);
-        sprintf(statusMsg, "BLE %s", clientAddress);
+        sprintf(statusMsg, "BLE %s", NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         displayStatusMsg(statusMsg, 25, true, BLUE, WHITE);
-        Serial.printf("BLE: device %s connected\n", clientAddress);
+        Serial.printf("BLE: device %s connected\n", NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         BLEdeviceConnected = true;
     }
 
-    void onDisconnect(BLEServer* pServer) {
+    void onDisconnect(NimBLEServer* pServer) {
         displayStatusMsg("BLE disconnected", 50, true, BLUE, WHITE);
         Serial.println("BLE: device disconnected");
         pServer->getAdvertising()->start(); // restart after disconnecting from client
@@ -89,8 +85,8 @@ void ble_init() {
     }
 
     snprintf(bleServerName, sizeof(bleServerName), "%s-%s", WIFI_PORTAL_SSID, getSystemID().c_str());
-    BLEDevice::init(bleServerName);
-    BLEDevice::setPower(ESP_PWR_LVL_P9); // +9dbm
+    NimBLEDevice::init(bleServerName);
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // +9dbm
 
     M5.Lcd.clearDisplay(BLUE);
     M5.Lcd.setTextColor(WHITE);
@@ -99,15 +95,15 @@ void ble_init() {
     M5.Lcd.print("Starting BLE Server...");
 
     // BLE server and service setup
-    BLEServer *pServer = BLEDevice::createServer();
+    NimBLEServer *pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new deviceCallbacks());
-    BLEService *devInfoService = pServer->createService(BLE_DEVINFO_SERVICE_UUID);
-    BLEService *environmentalService = pServer->createService(BLE_ENVIRONMENTAL_SERVICE_UUID, 20);
+    NimBLEService *devInfoService = pServer->createService(BLE_DEVINFO_SERVICE_UUID);
+    NimBLEService *environmentalService = pServer->createService(BLE_ENVIRONMENTAL_SERVICE_UUID);
 
     devInfoService->addCharacteristic(&modelCharacteristic);
     modelCharacteristic.setValue(FIRMWARE_NAME);
     devInfoService->addCharacteristic(&manufacturerCharacteristic);
-    manufacturerCharacteristic.setValue("Fraunhofer IOSB");
+    manufacturerCharacteristic.setValue(MANUFACTURER);
     devInfoService->addCharacteristic(&firmwareCharacteristic);
     firmwareCharacteristic.setValue(FIRMWARE_VERSION);
     devInfoService->addCharacteristic(&elaspedTimeCharacteristic);
@@ -152,7 +148,7 @@ void ble_init() {
     environmentalService->start();
 
     // Start advertising
-    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+    NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
     pAdvertising->setScanResponse(true);
     pAdvertising->setMinPreferred(0x06); // iPhone fix?
     pServer->getAdvertising()->start();

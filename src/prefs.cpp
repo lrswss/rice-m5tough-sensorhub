@@ -31,7 +31,7 @@ Preferences nvs;
 // instantiate app settings and set default values
 appPrefs_t prefs = {
     { 0 },
-    READING_INTERVAL_SEC,
+    SENSOR_READING_INTERVAL_SEC,
     MQTT_BROKER_HOST,
     MQTT_BROKER_PORT,
     MQTT_TOPIC,

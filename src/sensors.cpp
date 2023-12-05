@@ -300,7 +300,7 @@ void bme680_dialogResetBSEC() {
     M5.Buttons.draw();
     bYes.addHandler(eventResetBSEC, E_RELEASE);
     bNo.addHandler(eventResetBSEC, E_RELEASE);
-    while (timeout++ < (DIALOG_TIMEOUT_SECS*1000) && !endButtonWaitLoop) {
+    while (timeout++ < (DISPLAY_DIALOG_TIMEOUT_SECS * 1000) && !endButtonWaitLoop) {
         M5.update();
         delay(1);
     }

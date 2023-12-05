@@ -239,7 +239,7 @@ void wifi_dialogStartPortal() {
     M5.Buttons.draw();
     bYes.addHandler(eventStartPortal, E_RELEASE);
     bNo.addHandler(eventStartPortal, E_RELEASE);
-    while (timeout++ < (DIALOG_TIMEOUT_SECS * 1000) && !endButtonWaitLoop) {
+    while (timeout++ < (DISPLAY_DIALOG_TIMEOUT_SECS * 1000) && !endButtonWaitLoop) {
         M5.update();
         delay(1);
     }

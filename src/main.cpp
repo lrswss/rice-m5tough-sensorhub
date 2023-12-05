@@ -58,7 +58,7 @@ void loop() {
     bme680_read(); // calculates readings every 3 seconds and calibrates sensors
 
     // read sensor data every READING_INTERVAL_SEC
-    if (millis() - lastReading > (READING_INTERVAL_SEC * 1000)) {
+    if (millis() - lastReading > (SENSOR_READING_INTERVAL_SEC * 1000)) {
         lastReading = millis();
         mlx90614_read();
         sfa30_read();

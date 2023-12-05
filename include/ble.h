@@ -20,10 +20,7 @@
 #ifndef _BLE_H
 #define _BLE_H
 
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
+#include <NimBLEDevice.h>
 
 // UUIDs for Services
 // https://www.bluetooth.com/specifications/assigned-numbers/
@@ -40,7 +37,7 @@
 #define BLE_UUID_IAQ "3118ab5a-c9e6-48d1-91c2-3ca1652a61c6"  // Air Quality Index
 #define BLE_UUID_HCHO "f202b62d-3794-4388-987c-509780b18326"  // Formaldehyde (ppb)
 
-#define BLE_PROPERTY_NOTIFY_READ (BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_READ)
+#define BLE_PROPERTY_NOTIFY_READ (NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ)
 
 void ble_init();
 void ble_notify();

@@ -89,7 +89,7 @@ int mqtt_state() {
 // try to publish sensor reedings
 bool mqtt_publish() {
     StaticJsonDocument<256> JSON;
-    static char topic[64], buf[208];
+    static char topic[64], buf[232];
 
     JSON.clear();
     JSON["systemId"] = getSystemID();
@@ -111,6 +111,9 @@ bool mqtt_publish() {
     }
     JSON["rssi"] = WiFi.RSSI();
     JSON["runtime"] = getRuntimeMinutes();
+#ifdef MEMORY_DEBUG_INTERVAL_MIN
+    JSON["heap"] = ESP.getFreeHeap();
+#endif
     JSON["version"] = FIRMWARE_VERSION;
 
     memset(buf, 0, sizeof(buf));
