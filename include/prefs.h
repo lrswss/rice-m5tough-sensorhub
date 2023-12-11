@@ -30,7 +30,7 @@ extern Preferences nvs;
 
 typedef struct {
     uint8_t bsecState[BSEC_MAX_STATE_BLOB_SIZE+1];
-    uint16_t readingsInterval;
+    uint16_t readingsIntervalSecs;
     char mqttBroker[PARAMETER_SIZE+1];
     uint16_t mqttBrokerPort;
     char mqttTopic[PARAMETER_SIZE+1];
@@ -40,6 +40,11 @@ typedef struct {
     char mqttPassword[PARAMETER_SIZE+1];
     char ntpServer[PARAMETER_SIZE+1];
     bool bleServer;
+    bool lorawanEnable;
+    char lorawanAppEUI[17];
+    char lorawanAppKey[33];
+    uint16_t lorawanIntervalSecs;
+    bool lorawanConfirm;
     bool clearNVSUpdate;
     uint8_t sha256[32];
 } appPrefs_t;

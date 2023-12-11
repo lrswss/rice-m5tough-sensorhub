@@ -25,6 +25,7 @@
 #include "sensors.h"
 #include "prefs.h"
 #include "ble.h"
+#include "lorawan.h"
 
 
 void setup() {
@@ -45,9 +46,11 @@ void setup() {
     bme680_dialogResetBSEC();
 
     wifi_dialogStartPortal();
-    ble_init();
     ntp_init();
     mqtt_init();
+
+    ble_init();
+    LoRaWAN.begin(&Serial2, LORAWAN_RX_PIN, LORAWAN_TX_PIN);
 }
 
 
@@ -58,7 +61,7 @@ void loop() {
     bme680_read(); // calculates readings every 3 seconds and calibrates sensors
 
     // read sensor data every READING_INTERVAL_SEC
-    if (millis() - lastReading > (SENSOR_READING_INTERVAL_SEC * 1000)) {
+    if (tsDiff(lastReading) > (SENSOR_READING_INTERVAL_SEC * 1000)) {
         lastReading = millis();
         mlx90614_read();
         sfa30_read();
@@ -66,7 +69,7 @@ void loop() {
         // display and publish sensor readings on significant changes
         // or if mqtt publishing interval has passed
         if (mlx90614_changed() || sfa30_changed() || bme680_changed() ||
-            (millis() - lastMqttPublish) > (MQTT_PUBLISH_INTERVAL_SECS * 1000)) {
+            tsDiff(lastMqttPublish) > (MQTT_PUBLISH_INTERVAL_SECS * 1000)) {
 
             mlx90614_display();
             Serial.print("MLX90614: ");
@@ -77,7 +80,7 @@ void loop() {
                 Serial.print(sensors.mlxAmbientTemp, 1);
                 Serial.println(" C)");
             } else {
-                Serial.println(" sensor not ready!");
+                Serial.println("sensor not ready!");
             }
 
             sfa30_display();
@@ -91,7 +94,7 @@ void loop() {
                 Serial.print(sensors.sfa30Temp, 1);
                 Serial.println(" C)");
             } else {
-                Serial.println(" sensor not ready!");
+                Serial.println("sensor not ready!");
             }
 
             bme680_display();
@@ -110,10 +113,11 @@ void loop() {
                 Serial.print(sensors.bme680Temp, 1);
                 Serial.println(" C)");
             } else {
-                Serial.println(" sensor not ready!");
+                Serial.println("sensor not ready!");
             }
 
             ble_notify();
+            LoRaWAN.queue(sensors);
 
             // make sure Wifi is up before trying to publish data
             if (WiFi.status() != WL_CONNECTED) {
@@ -145,8 +149,8 @@ void loop() {
     // check wifi connection and try to reconnect if down
     wifi_reconnect();
 
-#ifdef MEMORY_DEBUG_INTERVAL_MIN
-    memoryDebug();
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+    printFreeHeap();
 #endif
 
     esp_task_wdt_reset(); // feed the dog...

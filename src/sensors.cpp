@@ -143,17 +143,17 @@ static void eventResetBSEC(Event& e) {
 // 0: error, 1: gas sensor warmup, 2: all sensor readings available
 uint8_t bme680_status() {
     if (bme680.status < BSEC_OK) {
-        Serial.printf("ERROR: BSEC library returns code (%d)\n", bme680.status);
+        Serial.printf("BME680: BSEC library error (%d)\n", bme680.status);
         return 0;
     } else if (bme680.status > BSEC_OK) {
-        Serial.printf("WARNING: BSEC library returns code (%d)\n", bme680.status);
+        Serial.printf("BME680: BSEC library warning (%d)\n", bme680.status);
     }
 
     if (bme680.bme680Status < BME680_OK) {
-        Serial.printf("ERROR: sensor returns code (%d)\n", bme680.bme680Status);
+        Serial.printf("BME680: sensor code (%d)\n", bme680.bme680Status);
         return 0;
     } else if (bme680.bme680Status > BME680_OK) {
-        Serial.printf("WARNING: sensor returns code (%d)\n", bme680.bme680Status);
+        Serial.printf("BME680: sensor warning (%d)\n", bme680.bme680Status);
     }
 
     if (bme680.runInStatus < 1) // gas sensor warmup
@@ -433,6 +433,8 @@ bool sfa30_status() {
 bool sfa30_read() {
     int16_t hcho = 0, hum = 0, temp = 0;
 
+    if (!sfa30_status())
+        return false;
     sfa30_error = SFA30.readMeasuredValues(hcho, hum, temp);
     if (!sfa30_error) {
         sensors.sfa30HCHO = hcho / 5.0;

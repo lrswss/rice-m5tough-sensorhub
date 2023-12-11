@@ -28,8 +28,8 @@
 #include "FreeSansBold36pt7b.h"
 #include "logo.h"
 
-#define WATCHDOG_TIMEOUT_SEC 120
-#define MEMORY_DEBUG_INTERVAL_MIN 60
+#define WATCHDOG_TIMEOUT_SEC 90
+#define MEMORY_DEBUG_INTERVAL_SECS 20
 extern time_t lastStatusMsg;
 
 void displayLogo();
@@ -40,8 +40,10 @@ time_t tsDiff(time_t tsMillis);
 String getSystemID();
 void startWatchdog();
 void stopWatchdog();
-#ifdef MEMORY_DEBUG_INTERVAL_MIN
-void memoryDebug();
+void array2string(const byte *arr, int len, char *buf);
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+void printFreeHeap();
+UBaseType_t printFreeStackWatermark(const char *taskName);
 #endif
 
 #endif

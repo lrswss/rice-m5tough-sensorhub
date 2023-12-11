@@ -43,28 +43,33 @@ static void connectionFailed(const char* apname) {
 
 
 // show message on display with details on established WiFi connection
-static void connectionSuccess() {
-    M5.Lcd.clearDisplay(BLUE);
-    M5.Lcd.setTextColor(WHITE);
-    M5.Lcd.setFreeFont(&FreeSans12pt7b);
-    M5.Lcd.setCursor(20, 40);
-    M5.Lcd.print("Connecting to WiFi...OK");
-    M5.Lcd.setCursor(20, 100);
-    M5.Lcd.print("WLAN: ");
-    M5.Lcd.println(WiFi.SSID());
-    M5.Lcd.setCursor(20, 130);
-    M5.Lcd.print("RSSI: ");
-    M5.Lcd.print(WiFi.RSSI());
-    M5.Lcd.println(" dBm");
-    M5.Lcd.setCursor(20, 160);
-    M5.lcd.print("IP: ");
-    M5.lcd.println(WiFi.localIP());
-    Serial.print("WiFi: connected with IP ");
-    Serial.print(WiFi.localIP());
-    Serial.printf(" (RSSI %d dbm)\n", WiFi.RSSI());
+static void connectionSuccess(bool success) {
+    if (!success) {
+        M5.Lcd.clearDisplay(BLUE);
+        M5.Lcd.setTextColor(WHITE);
+        M5.Lcd.setFreeFont(&FreeSans12pt7b);
+        M5.Lcd.setCursor(20, 40);
+        M5.Lcd.print("Connecting to WiFi...");
+    } else {
+        M5.Lcd.print("OK");
+        vTaskDelay(500);
+        M5.Lcd.setCursor(20, 100);
+        M5.Lcd.print("WLAN: ");
+        M5.Lcd.println(WiFi.SSID());
+        M5.Lcd.setCursor(20, 130);
+        M5.Lcd.print("RSSI: ");
+        M5.Lcd.print(WiFi.RSSI());
+        M5.Lcd.println(" dBm");
+        M5.Lcd.setCursor(20, 160);
+        M5.lcd.print("IP: ");
+        M5.lcd.println(WiFi.localIP());
+        Serial.print("WiFi: connected with IP ");
+        Serial.print(WiFi.localIP());
+        Serial.printf(" (RSSI %d dbm)\n", WiFi.RSSI());
 
-    strlcpy(ssid, WiFi.SSID().c_str(), 32); // used by wifi_reconnect()
-    strlcpy(psk, WiFi.psk().c_str(), 32);
+        strlcpy(ssid, WiFi.SSID().c_str(), 32); // used by wifi_reconnect()
+        strlcpy(psk, WiFi.psk().c_str(), 32);
+    }
 }
 
 
@@ -124,7 +129,7 @@ static void wifi_manager(bool forcePortal) {
     WiFiManager wm;
     const char* menu[] = { "wifi", "param", "sep", "update", "restart" };
     String apname = "SensorHub-" + getSystemID();
-    char mqttPortStr[8], intervalStr[4];
+    char mqttPortStr[8], sensorIntervalStr[4], mqttIntervalStr[4], lorawanIntervalStr[4];
 
     memset(ssid, 0, sizeof(ssid));
     wm.setDebugOutput(false, "WiFi: ");
@@ -140,8 +145,12 @@ static void wifi_manager(bool forcePortal) {
     wm.setTitle("SensorHub");
     wm.setMenu(menu, 5);
 
-    sprintf(intervalStr, "%d", prefs.mqttIntervalSecs);
-    WiFiManagerParameter mqtt_interval("interval", "MQTT Publish Interval (secs)", intervalStr, 3);
+    sprintf(sensorIntervalStr, "%d", prefs.readingsIntervalSecs);
+    sprintf(mqttIntervalStr, "%d", prefs.mqttIntervalSecs);
+    sprintf(lorawanIntervalStr, "%d", prefs.lorawanIntervalSecs);
+
+    WiFiManagerParameter sensor_interval("sensor_interval", "MQTT Publish Interval (3-60 secs)", sensorIntervalStr, 3);
+    WiFiManagerParameter mqtt_interval("mqtt_interval", "MQTT Publish Interval (10-120 secs)", mqttIntervalStr, 3);
     WiFiManagerParameter mqtt_broker("broker", "MQTT Broker", prefs.mqttBroker, PARAMETER_SIZE);
     sprintf(mqttPortStr, "%d", prefs.mqttBrokerPort);
     WiFiManagerParameter mqtt_port("port", "MQTT Broker Port", mqttPortStr, 6);
@@ -151,7 +160,11 @@ static void wifi_manager(bool forcePortal) {
     WiFiManagerParameter mqtt_auth("auth", "MQTT Authentication", "1", 1, prefs.mqttEnableAuth ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
     WiFiManagerParameter ntp_server("ntp", "NTP Server", prefs.ntpServer, PARAMETER_SIZE);
     WiFiManagerParameter ble_server("ble", "BLE Server", "1", 1, prefs.bleServer ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
+    WiFiManagerParameter lorawan_node("lorawan", "LoRaWAN Node", "1", 1, prefs.lorawanEnable ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
+    WiFiManagerParameter lorawan_interval("lorawan_interval", "LoRaWAN Transmit Interval (30-300 secs)", lorawanIntervalStr, 3);
+    WiFiManagerParameter lorawan_confirm("lorawan_confirm", "LoRaWAN Confirm Transmit", "1", 1, prefs.lorawanConfirm ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
 
+    wm.addParameter(&sensor_interval);
     wm.addParameter(&mqtt_interval);
     wm.addParameter(&mqtt_broker);
     wm.addParameter(&mqtt_port);
@@ -161,10 +174,14 @@ static void wifi_manager(bool forcePortal) {
     wm.addParameter(&mqtt_auth);
     wm.addParameter(&ntp_server);
     wm.addParameter(&ble_server);
+    wm.addParameter(&lorawan_node);
+    wm.addParameter(&lorawan_interval);
+    wm.addParameter(&lorawan_confirm);
 
     if (!forcePortal && wm.getWiFiSSID().length())
         Serial.printf("WiFiManager: autoconnect to SSID %s\n", wm.getWiFiSSID().c_str());
 
+    connectionSuccess(false);
     if (!wm.autoConnect(apname.c_str(), randomPassword())) {
         connectionFailed(wm.getWiFiSSID().c_str());
         delay(3000);
@@ -182,11 +199,12 @@ static void wifi_manager(bool forcePortal) {
     }
 
     if (WiFi.isConnected()) {
-        connectionSuccess();
+        connectionSuccess(true);
         delay(1500);
     }
 
     if (updateSettings) {
+        prefs.readingsIntervalSecs = strtoumax(sensor_interval.getValue(), NULL, 10);
         prefs.mqttIntervalSecs = strtoumax(mqtt_interval.getValue(), NULL, 10);
         strlcpy(prefs.mqttBroker, mqtt_broker.getValue(), PARAMETER_SIZE);
         prefs.mqttBrokerPort = strtoumax(mqtt_port.getValue(), NULL, 10);
@@ -196,6 +214,10 @@ static void wifi_manager(bool forcePortal) {
         strlcpy(prefs.mqttPassword, mqtt_pass.getValue(), PARAMETER_SIZE);
         strlcpy(prefs.ntpServer, ntp_server.getValue(), PARAMETER_SIZE);
         prefs.bleServer = *ble_server.getValue();
+        prefs.lorawanEnable = *lorawan_node.getValue();
+        prefs.lorawanIntervalSecs = strtoumax(lorawan_interval.getValue(), NULL, 10);
+        prefs.lorawanConfirm = *lorawan_confirm.getValue();
+
         savePrefs(false);
     }
 }
@@ -231,8 +253,8 @@ void wifi_dialogStartPortal() {
     M5.Lcd.fillScreen(WHITE);
     M5.Lcd.setTextColor(BLACK);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
-    M5.Lcd.setCursor(55, 70);
-    M5.Lcd.print("Start setup portal to");
+    M5.Lcd.setCursor(60, 70);
+    M5.Lcd.print("Start WiFi portal to");
     M5.Lcd.setCursor(50, 100);
     M5.Lcd.print("(re)configure device?");
 
@@ -263,7 +285,7 @@ void wifi_reconnect() {
         M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
         M5.Lcd.setCursor(20, 40);
-        M5.Lcd.print("Reconnecting to WiFi...");
+        M5.Lcd.print("Reconnecting WiFi...");
         Serial.printf("WiFi: reconnecting to SSID %s...", ssid);
 
         WiFi.disconnect();
@@ -277,7 +299,7 @@ void wifi_reconnect() {
             connectionFailed(ssid);
             Serial.printf(", next attempt in %d seconds...\n", int(WIFI_RETRY_SECS));
         } else {
-            connectionSuccess();
+            connectionSuccess(true);
         }
     }
 }

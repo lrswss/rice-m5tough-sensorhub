@@ -103,14 +103,29 @@ void stopWatchdog() {
     Serial.println(F("[WARNING] watchdog disabled"));
 }
 
-#ifdef MEMORY_DEBUG_INTERVAL_MIN
-void memoryDebug() {
+
+// turn hex byte array of given length into a null-terminated hex string
+void array2string(const byte *arr, int len, char *buf) {
+    for (int i = 0; i < len; i++)
+        sprintf(buf + i * 2, "%02X", arr[i]);
+}
+
+
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+void printFreeHeap() {
     static time_t lastMsgMillis = 0;
 
-    if ((millis() - lastMsgMillis) > (MEMORY_DEBUG_INTERVAL_MIN * 1000)) {
-        Serial.printf("Runtime %d minutes, FreeHeap %d bytes\n",
+    if (tsDiff(lastMsgMillis) > (MEMORY_DEBUG_INTERVAL_SECS * 1000)) {
+        Serial.printf(">>> [DEBUG] runtime %d min, FreeHeap %d bytes\n",
             getRuntimeMinutes(), ESP.getFreeHeap());
         lastMsgMillis = millis();
     }
+}
+
+UBaseType_t printFreeStackWatermark(const char *taskName) {
+    UBaseType_t wm = uxTaskGetStackHighWaterMark(NULL);
+    Serial.printf(">>> [DEBUG] %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n", 
+        taskName, getRuntimeMinutes(), xPortGetCoreID(), wm);
+    return wm;
 }
 #endif

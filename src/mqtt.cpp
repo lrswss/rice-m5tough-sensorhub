@@ -24,6 +24,7 @@
 #include "utils.h"
 #include "prefs.h"
 #include "config.h"
+#include "lorawan.h"
 
 // setup wifi and mqtt client
 WiFiClient espClient;
@@ -43,7 +44,7 @@ static bool mqtt_connect(bool startup) {
 #else
     if (mqtt.connect(clientid)) {
 #endif
-      Serial.println(F("OK."));
+      Serial.println("OK");
       return true;
 
     } else {
@@ -67,6 +68,7 @@ static bool mqtt_connect(bool startup) {
 
 void mqtt_init() {
     mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
+    mqtt.setBufferSize(320);
     if (WiFi.status() == WL_CONNECTED) {
         M5.Lcd.clearDisplay(BLUE);
         M5.Lcd.setTextColor(WHITE);
@@ -88,8 +90,8 @@ int mqtt_state() {
 
 // try to publish sensor reedings
 bool mqtt_publish() {
-    StaticJsonDocument<256> JSON;
-    static char topic[64], buf[232];
+    StaticJsonDocument<384> JSON;
+    static char topic[64], buf[256];
 
     JSON.clear();
     JSON["systemId"] = getSystemID();
@@ -111,8 +113,10 @@ bool mqtt_publish() {
     }
     JSON["rssi"] = WiFi.RSSI();
     JSON["runtime"] = getRuntimeMinutes();
-#ifdef MEMORY_DEBUG_INTERVAL_MIN
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
     JSON["heap"] = ESP.getFreeHeap();
+    JSON["joinTask"] = stackWmJoinTask;
+    JSON["queueTask"] = stackWmQueueTask;
 #endif
     JSON["version"] = FIRMWARE_VERSION;
 

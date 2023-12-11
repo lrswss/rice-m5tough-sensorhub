@@ -51,6 +51,15 @@ appPrefs_t prefs = {
 #else
     false,
 #endif
+#if defined(LORAWAN_APPEUI) and defined(LORAWAN_APPKEY)
+    true,
+#else
+    false,
+#endif
+    LORAWAN_APPEUI,
+    LORAWAN_APPKEY,
+    LORAWAN_INTERVAL_SECS,
+    LORAWAN_CONFIRM,
 #ifdef CLEAR_NVS_ON_UPDATE
     true,
 #else
@@ -125,11 +134,17 @@ void savePrefs(bool restart) {
     if (prefs.mqttIntervalSecs > 120)
         prefs.mqttIntervalSecs = 120;
 
-    if (prefs.readingsInterval < 3)
-        prefs.readingsInterval = 3;
+    if (prefs.readingsIntervalSecs < 3)
+        prefs.readingsIntervalSecs = 3;
 
-    if (prefs.readingsInterval > 60)
-        prefs.readingsInterval = 60;
+    if (prefs.readingsIntervalSecs > 60)
+        prefs.readingsIntervalSecs = 60;
+
+    if (prefs.lorawanIntervalSecs < 30)
+        prefs.lorawanIntervalSecs = 30;
+
+    if (prefs.lorawanIntervalSecs > 300)
+        prefs.lorawanIntervalSecs = 300;
 
     nvs.putBytes("appPrefs", &prefs, sizeof(prefs));
     nvs.putBool("saved", true);

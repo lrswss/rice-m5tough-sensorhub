@@ -77,7 +77,7 @@ void displayDateTime() {
 
     if (WiFi.status() == WL_CONNECTED)
         timeClient.update();
-    if ((millis() - lastTimeUpdate) >= 1000 && (millis() - lastStatusMsg) > 1000) {
+    if (tsDiff(lastTimeUpdate) >= 1000 && tsDiff(lastStatusMsg) > 1000) {
         epochTime = timeClient.getEpochTime();
         displayStatusMsg(getDateString(epochTime), 15, false, WHITE, BLUE);
         M5.Lcd.setCursor(215, 230);
@@ -88,20 +88,23 @@ void displayDateTime() {
 
 
 void ntp_init() {
-    timeClient.begin();
-    timeClient.setPoolServerName(prefs.ntpServer);
-    if (WiFi.status() == WL_CONNECTED) {
-        M5.Lcd.clearDisplay(BLUE);
-        M5.Lcd.setTextColor(WHITE);
-        M5.Lcd.setFreeFont(&FreeSans12pt7b);
-        M5.Lcd.setCursor(20,40);
-        M5.Lcd.print("Syncing time...");
-        Serial.printf("Syncing time with NTP server %s...", prefs.ntpServer);
-        timeClient.forceUpdate();
-        M5.Lcd.print("OK");
-        Serial.println("OK");
-        delay(1500);
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("NTP: time sync aborted, no WiFi");
+        return;
     }
+
+    timeClient.setPoolServerName(prefs.ntpServer);
+    timeClient.begin();
+    M5.Lcd.clearDisplay(BLUE);
+    M5.Lcd.setTextColor(WHITE);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setCursor(20,40);
+    M5.Lcd.print("Syncing time...");
+    Serial.printf("NTP: syncing time with server %s...", prefs.ntpServer);
+    timeClient.forceUpdate();
+    M5.Lcd.print("OK");
+    Serial.println("OK");
+    delay(1500);
 }
 
 

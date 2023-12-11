@@ -31,16 +31,16 @@
 typedef struct {
     float mlxObjectTemp;
     float mlxAmbientTemp;
-    float sfa30HCHO;
+    float sfa30HCHO; // 0-1000 ppb
     float sfa30Temp;
     uint8_t sfa30Hum;
     float bme680Temp;
     uint8_t bme680Hum;
-    uint16_t bme680Iaq;
-    uint8_t bme680IaqAccuracy;
-    uint16_t bme680GasResistance;
-    uint16_t bme680eCO2;
-    float bme680VOC;
+    uint16_t bme680Iaq; // 0-500
+    uint8_t bme680IaqAccuracy; // 0-3
+    uint16_t bme680GasResistance; // kOhm
+    uint16_t bme680eCO2; // 400–2000 ppm
+    float bme680VOC; // 0.13–2.5 ppm
 } sensorReadings_t;
 
 extern sensorReadings_t sensors;
