@@ -33,23 +33,26 @@ TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};
 Timezone CE(CEST, CET);  // Frankfurt, Paris
 
 
-static char* getTimeString(time_t epoch) {
-    time_t t = CE.toLocal(epoch);
+char* getTimeString() {
     static char strTime[9]; // HH:MM:SS
+    time_t epoch = timeClient.getEpochTime();
+    time_t t = CE.toLocal(epoch);
     
     if (epoch > 1000) { 
       sprintf(strTime, "%.2d:%.2d:%.2d", hour(t), minute(t), second(t));
     } else {
       strncpy(strTime, "--:--:--", 8); 
     }
+    timeClient.update();
     return strTime;
 }
 
 
 // returns ptr to array with current date
-static char* getDateString(time_t epoch) {
-    time_t t = CE.toLocal(epoch);
+char* getDateString() {
     static char strDate[11]; // DD.MM.YYYY
+    time_t epoch = timeClient.getEpochTime();
+    time_t t = CE.toLocal(epoch);
 
     if (epoch > 1000) {
       sprintf(strDate, "%.2d.%.2d.%4d", day(t), month(t), year(t));
@@ -68,22 +71,6 @@ uint32_t getRuntimeMinutes() {
     seconds += tsDiff(lastMillis) / 1000;
     lastMillis = millis();
     return seconds/60;
-}
-
-
-void displayDateTime() {
-    static time_t lastTimeUpdate = 0;
-    time_t epochTime = 0;
-
-    if (WiFi.status() == WL_CONNECTED)
-        timeClient.update();
-    if (tsDiff(lastTimeUpdate) >= 1000 && tsDiff(lastStatusMsg) > 1000) {
-        epochTime = timeClient.getEpochTime();
-        displayStatusMsg(getDateString(epochTime), 15, false, WHITE, BLUE);
-        M5.Lcd.setCursor(215, 230);
-        M5.Lcd.print(getTimeString(epochTime));
-        lastTimeUpdate = millis();
-    }
 }
 
 

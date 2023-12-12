@@ -22,7 +22,7 @@
 #include "prefs.h"
 #include "rtc.h"
 
-time_t lastStatusMsg = 0;
+QueueHandle_t statusMsgQueue;
 
 // print fake ° symbol on display
 void printDegree(uint16_t color) {
@@ -64,16 +64,59 @@ time_t tsDiff(time_t tsMillis) {
 
 
 // display status message on bottom of screen
-void displayStatusMsg(const char msg[], uint16_t pos, bool bold, uint16_t colorText, uint16_t colorBackground) {
-    M5.Lcd.setTextColor(colorText);
-    M5.Lcd.fillRect(0, 205, 320, 40, colorBackground);
+void displayStatusMsg(const char* msg, uint16_t pos, bool bold, uint16_t cText, uint16_t cBack) {
+    M5.Lcd.setTextColor(cText);
+    M5.Lcd.fillRect(0, 205, 320, 40, cBack);
     if (bold)
         M5.Lcd.setFreeFont(&FreeSansBold12pt7b);
     else
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(pos, 230);
     M5.Lcd.printf(msg);
-    lastStatusMsg = millis();
+}
+
+
+void updateStatusBar() {
+    static time_t lastUpdate = 0;
+    static bool showMessage = false;
+    StatusMsg_t statusMsg;
+
+    if (tsDiff(lastUpdate) >= 1000) {
+        lastUpdate = millis();
+        if (showMessage && xQueueReceive(statusMsgQueue, &statusMsg, 0) == pdTRUE) {
+            displayStatusMsg(statusMsg.text, statusMsg.position, statusMsg.bold,
+                statusMsg.colorText, statusMsg.colorBackground);
+            showMessage = false;
+        } else {
+            displayStatusMsg(getDateString(), 15, false, WHITE, BLUE);
+            M5.Lcd.setCursor(215, 230);
+            M5.Lcd.print(getTimeString());
+            showMessage = uxQueueMessagesWaiting(statusMsgQueue) ? true : false;
+        }
+    }
+}
+
+
+void queueStatusMsg(const char* text, uint16_t pos, bool warning) {
+    StatusMsg_t msg;
+
+    strlcpy(msg.text, text, sizeof(msg.text));
+    msg.position = pos;
+    msg.bold = true;
+    msg.ts = millis();
+
+    if (uxQueueMessagesWaiting(statusMsgQueue) == STATUS_MESSAGE_QUEUE_SIZE)
+        Serial.println("ERROR: statusMsgQueue overflow");
+
+    if (warning) {
+        msg.colorText = WHITE;
+        msg.colorBackground = RED;
+        xQueueSendToFront(statusMsgQueue, (void*)&msg, 250/portTICK_PERIOD_MS);
+    } else {
+        msg.colorText = BLUE;
+        msg.colorBackground = WHITE;
+        xQueueSendToBack(statusMsgQueue, (void*)&msg, 250/portTICK_PERIOD_MS);
+    }
 }
 
 
@@ -124,7 +167,7 @@ void printFreeHeap() {
 
 UBaseType_t printFreeStackWatermark(const char *taskName) {
     UBaseType_t wm = uxTaskGetStackHighWaterMark(NULL);
-    Serial.printf(">>> [DEBUG] %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n", 
+    Serial.printf(">>> [DEBUG] %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n",
         taskName, getRuntimeMinutes(), xPortGetCoreID(), wm);
     return wm;
 }

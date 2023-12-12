@@ -30,11 +30,25 @@
 
 #define WATCHDOG_TIMEOUT_SEC 90
 #define MEMORY_DEBUG_INTERVAL_SECS 20
+#define STATUS_MESSAGE_QUEUE_SIZE 5
+
+typedef struct {
+    char text[64];
+    uint16_t position;
+    uint16_t colorText;
+    uint16_t colorBackground;
+    bool bold;
+    time_t ts;
+} StatusMsg_t;
+
 extern time_t lastStatusMsg;
+extern QueueHandle_t statusMsgQueue;
 
 void displayLogo();
 void displaySplashScreen();
-void displayStatusMsg(const char msg[], uint16_t pos, bool bold, uint16_t colorText, uint16_t colorBackground);
+void displayStatusMsg(const char* msg, uint16_t pos, bool bold, uint16_t cText, uint16_t cBack);
+void queueStatusMsg(const char* text, uint16_t pos, bool warning);
+void updateStatusBar();
 void printDegree(uint16_t color);
 time_t tsDiff(time_t tsMillis);
 String getSystemID();

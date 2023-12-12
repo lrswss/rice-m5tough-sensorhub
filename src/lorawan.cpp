@@ -77,7 +77,7 @@ lorawanState ASR6501::status() {
 
 // send command to serial LoRaWAN adapter and returns response as string
 const char* ASR6501::sendCmd(const char* cmd, uint16_t timeout) {
-    static char buf[96], c;
+    static char buf[128], c;
     bool dataRead = false;
     time_t startRead;
     lorawanState prevState; 
@@ -234,16 +234,16 @@ void ASR6501::joinTask() {
     while (true) {
         if (this->deviceState == ERROR) {
             Serial.println("LoRaWAN: serial command failed");
+            queueStatusMsg("LoRaWAN command", 40, true);
             this->deviceState == JOINFAIL;
-            vTaskDelay(500);
 
         } else if ((this->deviceState == JOINFAIL) && (retryWait <= LORAWAN_JOIN_RETRY_SECS)) {
             if (retryWait == LORAWAN_JOIN_RETRY_SECS) {
                 this->deviceState = IDLE;
                 retryWait = 0;
             } else if (!retryWait++) {
-                //displayStatusMsg("LoRaWAN failed", 60, true, WHITE, RED);
                 Serial.printf("LoRaWAN: join failed, retry in %d seconds\n", LORAWAN_JOIN_RETRY_SECS);
+                queueStatusMsg("LoRaWAN nojoin", 65, true);
                 if (strstr(this->sendCmd("AT+CSAVE"), "OK") == NULL ||
                     strstr(this->sendCmd("AT+IREBOOT=0"), "OK") == NULL)
                     this->deviceState = ERROR;
@@ -263,7 +263,7 @@ void ASR6501::joinTask() {
                         dataRead = true;
                         if (strstr(buf, "+CJOIN:OK") != NULL) {
                             Serial.println("LoRaWAN: joined network");
-                            displayStatusMsg("LoRaWAN joined", 60, true, BLUE, WHITE);
+                            queueStatusMsg("LoRaWAN joined", 60, false);
                             this->deviceState = JOINED;
                             break;
 
@@ -315,19 +315,18 @@ void ASR6501::queueTask() {
             lastRun = millis();
             if (xQueueReceive(this->msgQueue, &sensors, 0) == pdTRUE) {
                 strlcpy(payload, this->encodeLPP(sensors), sizeof(payload));
-                if (strlen(payload) > 0) {
+                if (strlen(payload) > 1) {
                     deviceState = SENDING;
                     Serial.printf("LoRaWAN: sending payload%s...", 
                         prefs.lorawanConfirm ? " (confirmed)" : "");
                     snprintf(cmd, sizeof(cmd), "AT+DTRX=%d,3,%d,%s", 
                         prefs.lorawanConfirm ? 1 : 0, strlen(payload), payload);
                     if (strstr(this->sendCmd(cmd), "OK+SEND:") != NULL) {
-                        // seems to crash system sometimes (Mutex errors?)
-                        // TODO: implement using a messageQueue base service replacing displayStatusMsg()
-                        //displayStatusMsg("LoRaWAN uplink", 60, true, BLUE, WHITE);
                         Serial.println("OK");
+                        queueStatusMsg("LoRaWAN uplink", 65, false);
                     } else {
                         Serial.printf("ERROR");
+                        queueStatusMsg("LoRaWAN failed", 65, true);
                     }
                     vTaskDelay(500);
                     // set state back to 'JOINED' if device is online or 'IDLE' if offline
@@ -369,9 +368,10 @@ const char* ASR6501::encodeLPP(sensorReadings_t sensors) {
     }
     lpp.addGenericSensor(7, getRuntimeMinutes());
 
-    if (lpp.getError() || ((lpp.getSize() * 2) >= sizeof(payload))) {
+    if (lpp.getError() || ((lpp.getSize() * 2) >= sizeof(payload)-1)) {
         Serial.println("LoRaWAN: CayenneLPP encoding failed");
-        return NULL;
+        queueStatusMsg("LoRaWAN encoding", 45, true);
+        return "-";  // empty
     }
     
     memset(payload, 0, sizeof(payload));
@@ -527,8 +527,7 @@ bool ASR6501::begin(HardwareSerial* serialPort, uint8_t rxPin, uint8_t txPin) {
 bool ASR6501::queue(sensorReadings_t data) {
     if (this->deviceState == JOINED) {
         Serial.println("LoRaWAN: queuing sensor data");
-        xQueueReset(this->msgQueue); // queue holds only most recent readings
-        return (xQueueSend(this->msgQueue, (void*)&data, 0) == pdTRUE);
+        return (xQueueOverwrite(this->msgQueue, (void*)&data) == pdTRUE);
     } else {
         return false;
     }

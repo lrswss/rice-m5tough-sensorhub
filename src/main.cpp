@@ -35,6 +35,9 @@ void setup() {
     Serial.printf("Firmware %s v%s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
     Serial.printf("Compiled on %s, %s\n", __DATE__, __TIME__);
 
+    // queue for status bar at bottom of LCD
+    statusMsgQueue = xQueueCreate(STATUS_MESSAGE_QUEUE_SIZE, sizeof(StatusMsg_t));
+
     startWatchdog();
     displayLogo();
     displaySplashScreen();
@@ -56,7 +59,7 @@ void setup() {
 
 void loop() {
     static time_t lastReading = 0, lastTimeUpdate = 0, mqttRetry = 0, lastMqttPublish = 0;
-    char statusMsg[128];
+    char statusMsg[64];
 
     bme680_read(); // calculates readings every 3 seconds and calibrates sensors
 
@@ -116,37 +119,35 @@ void loop() {
                 Serial.println("sensor not ready!");
             }
 
-            ble_notify();
+            ble_notify(); // TODO: pass 'sensors' as parameter
             LoRaWAN.queue(sensors);
 
             // make sure Wifi is up before trying to publish data
+            // TODO: turn wifi check into background task (see below)
             if (WiFi.status() != WL_CONNECTED) {
-                displayStatusMsg("No WiFi connection", 65, false, WHITE, RED);
+                queueStatusMsg("No WiFi connection", 65, true);
 
+            // TODO: 1) pass 'sensors' as parameter to mqtt_publish()
+            // 2) integrate retry loop into mqtt_publish()
             } else if (!mqttRetry || millis() > mqttRetry) {
-                displayStatusMsg("MQTT publish", 80, true, BLUE, WHITE);
                 if (mqtt_publish()) {
+                    queueStatusMsg("MQTT publish", 80, false);
                     lastMqttPublish = millis();
                     mqttRetry = 0;
-                    delay(500);
                 } else {
+                    snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt_state());
+                    queueStatusMsg(statusMsg, 45, true);
                     mqttRetry = millis() + (MQTT_RETRY_SECS * 1000);
                 }
-            }
-      
-            // display error messag in status line if MQTT failed
-            if (mqttRetry > 0 && millis() < mqttRetry) {
-                snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt_state());
-                displayStatusMsg(statusMsg, 45, false, WHITE, RED);
             }
         }
     }
 
     // update Date/Time in status line on bottom of the screen
-    if (!mqttRetry)
-        displayDateTime();
+    updateStatusBar();
 
     // check wifi connection and try to reconnect if down
+    // TODO: turn into background task
     wifi_reconnect();
 
 #ifdef MEMORY_DEBUG_INTERVAL_SECS

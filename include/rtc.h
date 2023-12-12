@@ -33,6 +33,7 @@
 
 void ntp_init();
 uint32_t getRuntimeMinutes();
-void displayDateTime();
+char* getTimeString();
+char* getDateString();
 
 #endif
