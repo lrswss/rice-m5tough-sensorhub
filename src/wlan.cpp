@@ -149,20 +149,23 @@ static void wifi_manager(bool forcePortal) {
     sprintf(mqttIntervalStr, "%d", prefs.mqttIntervalSecs);
     sprintf(lorawanIntervalStr, "%d", prefs.lorawanIntervalSecs);
 
-    WiFiManagerParameter sensor_interval("sensor_interval", "MQTT Publish Interval (3-60 secs)", sensorIntervalStr, 3);
+    WiFiManagerParameter sensor_interval("sensor_interval", "Sensor reading interval (3-60 secs)", sensorIntervalStr, 2);
     WiFiManagerParameter mqtt_interval("mqtt_interval", "MQTT Publish Interval (10-120 secs)", mqttIntervalStr, 3);
     WiFiManagerParameter mqtt_broker("broker", "MQTT Broker", prefs.mqttBroker, PARAMETER_SIZE);
     sprintf(mqttPortStr, "%d", prefs.mqttBrokerPort);
-    WiFiManagerParameter mqtt_port("port", "MQTT Broker Port", mqttPortStr, 6);
+    WiFiManagerParameter mqtt_port("port", "MQTT Broker Port", mqttPortStr, 5);
     WiFiManagerParameter mqtt_topic("topic", "MQTT Base Topic", prefs.mqttTopic, PARAMETER_SIZE);
     WiFiManagerParameter mqtt_user("user", "MQTT Username", prefs.mqttUsername, PARAMETER_SIZE);
     WiFiManagerParameter mqtt_pass("pass", "MQTT Password", prefs.mqttPassword, PARAMETER_SIZE);
     WiFiManagerParameter mqtt_auth("auth", "MQTT Authentication", "1", 1, prefs.mqttEnableAuth ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
     WiFiManagerParameter ntp_server("ntp", "NTP Server", prefs.ntpServer, PARAMETER_SIZE);
-    WiFiManagerParameter ble_server("ble", "BLE Server", "1", 1, prefs.bleServer ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
-    WiFiManagerParameter lorawan_node("lorawan", "LoRaWAN Node", "1", 1, prefs.lorawanEnable ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
+    WiFiManagerParameter ble_server("ble", "Enable BLE Server", "1", 1, prefs.bleServer ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
+    WiFiManagerParameter lorawan_node("lorawan", "Enable LoRaWAN", "1", 1, prefs.lorawanEnable ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
     WiFiManagerParameter lorawan_interval("lorawan_interval", "LoRaWAN Transmit Interval (30-300 secs)", lorawanIntervalStr, 3);
-    WiFiManagerParameter lorawan_confirm("lorawan_confirm", "LoRaWAN Confirm Transmit", "1", 1, prefs.lorawanConfirm ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
+    WiFiManagerParameter lorawan_confirm("lorawan_confirm", "Confirm Transmit", "1", 1, prefs.lorawanConfirm ? "type=\"checkbox\" checked" : "type=\"checkbox\"", WFM_LABEL_AFTER);
+    WiFiManagerParameter lorawan_appeui("lorawan_appeui", "LoRaWAN AppEUI (16 hex chars)", prefs.lorawanAppEUI, 16);
+    WiFiManagerParameter lorawan_appkey("lorawan_appkey", "LoRaWAN AppKey (32 hex chars)", prefs.lorawanAppKey, 32);
+    WiFiManagerParameter html_br("<br>");
 
     wm.addParameter(&sensor_interval);
     wm.addParameter(&mqtt_interval);
@@ -172,11 +175,20 @@ static void wifi_manager(bool forcePortal) {
     wm.addParameter(&mqtt_user);
     wm.addParameter(&mqtt_pass);
     wm.addParameter(&mqtt_auth);
+    wm.addParameter(&html_br);
+    wm.addParameter(&html_br);
     wm.addParameter(&ntp_server);
+    wm.addParameter(&html_br);
     wm.addParameter(&ble_server);
+    wm.addParameter(&html_br);
     wm.addParameter(&lorawan_node);
+    wm.addParameter(&html_br);
     wm.addParameter(&lorawan_interval);
     wm.addParameter(&lorawan_confirm);
+    wm.addParameter(&html_br);
+    wm.addParameter(&html_br);
+    wm.addParameter(&lorawan_appeui);
+    wm.addParameter(&lorawan_appkey);
 
     if (!forcePortal && wm.getWiFiSSID().length())
         Serial.printf("WiFiManager: autoconnect to SSID %s\n", wm.getWiFiSSID().c_str());
@@ -217,6 +229,8 @@ static void wifi_manager(bool forcePortal) {
         prefs.lorawanEnable = *lorawan_node.getValue();
         prefs.lorawanIntervalSecs = strtoumax(lorawan_interval.getValue(), NULL, 10);
         prefs.lorawanConfirm = *lorawan_confirm.getValue();
+        strlcpy(prefs.lorawanAppEUI, lorawan_appeui.getValue(), 16);
+        strlcpy(prefs.lorawanAppKey, lorawan_appkey.getValue(), 32);
 
         savePrefs(false);
     }
