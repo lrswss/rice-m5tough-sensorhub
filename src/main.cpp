@@ -58,8 +58,7 @@ void setup() {
 
 
 void loop() {
-    static time_t lastReading = 0, lastTimeUpdate = 0, mqttRetry = 0, lastMqttPublish = 0;
-    char statusMsg[64];
+    static time_t lastReading = 0, lastMqttPublish = 0;
 
     bme680_read(); // calculates readings every 3 seconds and calibrates sensors
 
@@ -118,28 +117,12 @@ void loop() {
             } else {
                 Serial.println("sensor not ready!");
             }
+            updateStatusBar();
 
-            ble_notify(); // TODO: pass 'sensors' as parameter
+            if (mqtt_publish(sensors))
+                lastMqttPublish = millis();
+            ble_notify(sensors);
             LoRaWAN.queue(sensors);
-
-            // make sure Wifi is up before trying to publish data
-            // TODO: turn wifi check into background task (see below)
-            if (WiFi.status() != WL_CONNECTED) {
-                queueStatusMsg("No WiFi connection", 65, true);
-
-            // TODO: 1) pass 'sensors' as parameter to mqtt_publish()
-            // 2) integrate retry loop into mqtt_publish()
-            } else if (!mqttRetry || millis() > mqttRetry) {
-                if (mqtt_publish()) {
-                    queueStatusMsg("MQTT publish", 80, false);
-                    lastMqttPublish = millis();
-                    mqttRetry = 0;
-                } else {
-                    snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt_state());
-                    queueStatusMsg(statusMsg, 45, true);
-                    mqttRetry = millis() + (MQTT_RETRY_SECS * 1000);
-                }
-            }
         }
     }
 
@@ -148,7 +131,7 @@ void loop() {
 
     // check wifi connection and try to reconnect if down
     // TODO: turn into background task
-    wifi_reconnect();
+    wifi_reconnect(); // queueStatusMsg("No WiFi connection", 65, true);
 
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
     printFreeHeap();

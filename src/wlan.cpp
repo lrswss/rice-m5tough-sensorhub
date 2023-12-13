@@ -293,7 +293,7 @@ void wifi_reconnect() {
     if (!strlen(ssid))
         return;
 
-    if (millis() > wifiReconnect && WiFi.status() != WL_CONNECTED) {
+    if (millis() > wifiReconnect && !WiFi.isConnected()) {
         wifiReconnect = millis() + (WIFI_RETRY_SECS * 1000);
         M5.Lcd.fillScreen(BLUE);
         M5.Lcd.setTextColor(WHITE);

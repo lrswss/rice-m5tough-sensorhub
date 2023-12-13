@@ -54,7 +54,7 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.4b3"
+#define FIRMWARE_VERSION "1.4b4"
 
 // clear NVS (and WiFi credentials) if new firmware is detected
 #define CLEAR_NVS_ON_UPDATE

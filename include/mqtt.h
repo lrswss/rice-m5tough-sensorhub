@@ -23,12 +23,12 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include "sensors.h"
 #include "config.h"
 
 #define MQTT_RETRY_SECS 10
 
 void mqtt_init();
-int mqtt_state();
-bool mqtt_publish();
+bool mqtt_publish(sensorReadings_t data);
 
 #endif

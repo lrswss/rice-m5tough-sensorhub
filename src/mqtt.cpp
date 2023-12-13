@@ -69,7 +69,7 @@ static bool mqtt_connect(bool startup) {
 void mqtt_init() {
     mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
     mqtt.setBufferSize(320);
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.isConnected()) {
         M5.Lcd.clearDisplay(BLUE);
         M5.Lcd.setTextColor(WHITE);
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
@@ -83,32 +83,36 @@ void mqtt_init() {
 }
 
 
-int mqtt_state() {
-    return mqtt.state();
-}
-
-
 // try to publish sensor reedings
-bool mqtt_publish() {
+bool mqtt_publish(sensorReadings_t data) {
     StaticJsonDocument<384> JSON;
-    static char topic[64], buf[256];
+    static char topic[64], buf[256], statusMsg[32];
+    static time_t mqttRetry = 0;
+
+    if (!WiFi.isConnected()) {
+        Serial.println("MQTT: publish skipped, no WiFi connection");
+        return false;
+    }
+
+    if (millis() <= mqttRetry)
+        return false;
 
     JSON.clear();
     JSON["systemId"] = getSystemID();
     if (mlx90614_status()) {
-        JSON["objectTemp"] = int(sensors.mlxObjectTemp*10)/10.0;
-        JSON["ambientTemp"] = int(sensors.mlxAmbientTemp*10)/10.0;
+        JSON["objectTemp"] = int(data.mlxObjectTemp*10)/10.0;
+        JSON["ambientTemp"] = int(data.mlxAmbientTemp*10)/10.0;
     }
     if (sfa30_status())
-        JSON["hcho"] = int(sensors.sfa30HCHO*10)/10.0;
+        JSON["hcho"] = int(data.sfa30HCHO*10)/10.0;
     if (bme680_status()) {
-        JSON["humidity"] = sensors.bme680Hum; // 0-100%
-        JSON["gasResistance"] = sensors.bme680GasResistance; // kOhms
-        JSON["iaqAccuracy"] = sensors.bme680IaqAccuracy; // 0-3
-        if (sensors.bme680IaqAccuracy >= 1) {
-            JSON["iaq"] = sensors.bme680Iaq; // 0-500
-            JSON["VOC"] = int(sensors.bme680VOC*10)/10.0; // ppm
-            JSON["eCO2"] = sensors.bme680eCO2; // ppm
+        JSON["humidity"] = data.bme680Hum; // 0-100%
+        JSON["gasResistance"] = data.bme680GasResistance; // kOhms
+        JSON["iaqAccuracy"] = data.bme680IaqAccuracy; // 0-3
+        if (data.bme680IaqAccuracy >= 1) {
+            JSON["iaq"] = data.bme680Iaq; // 0-500
+            JSON["VOC"] = int(data.bme680VOC*10)/10.0; // ppm
+            JSON["eCO2"] = data.bme680eCO2; // ppm
         }
     }
     JSON["rssi"] = WiFi.RSSI();
@@ -127,10 +131,15 @@ bool mqtt_publish() {
         if (mqtt.publish(topic, buf, s)) {
             Serial.printf("MQTT: published %d bytes to %s on %s\n", s,
                 prefs.mqttTopic, prefs.mqttBroker);
+            queueStatusMsg("MQTT publish", 80, false);
+            mqttRetry = 0;
             return true;
         }
     }
-    Serial.printf("MQTT: failed to publish to %s on %s (error %d)\n",
-        prefs.mqttTopic, prefs.mqttBroker, mqtt.state());
+    Serial.printf("MQTT: failed to publish to %s on %s (error %d), retry in %d secs\n",
+        prefs.mqttTopic, prefs.mqttBroker, mqtt.state(), MQTT_RETRY_SECS);
+    snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt.state());
+    queueStatusMsg(statusMsg, 40, true);
+    mqttRetry = millis() + (MQTT_RETRY_SECS * 1000); // schedule next try
     return false;
 }

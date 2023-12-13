@@ -110,6 +110,7 @@ const char* ASR6501::sendCmd(const char* cmd, uint16_t timeout) {
                 if (this->serial->available() <= 5)
                     vTaskDelay(2);
             }
+            esp_task_wdt_reset();
             vTaskDelay(100);
         }
         xSemaphoreGive(this->SerialLock);
@@ -256,7 +257,7 @@ void ASR6501::joinTask() {
             memset(buf, 0, sizeof(buf)); 
             startRead = millis();
             while (!dataRead && tsDiff(startRead) <= (LORAWAN_JOIN_TIMEOUT_SECS * 1000)) {
-                 while (this->serial->available() > 0) {
+                while (this->serial->available() > 0) {
                     c = this->serial->read();
                     if (i < sizeof(buf) && c >= 32 && c <= 126) {  // only printable chars
                         buf[i++] = c;
@@ -277,6 +278,7 @@ void ASR6501::joinTask() {
                     if (this->serial->available() <= 5)
                         vTaskDelay(2);
                 }
+                esp_task_wdt_reset();
                 vTaskDelay(500);
             }
             if (tsDiff(startRead) >= (LORAWAN_JOIN_TIMEOUT_SECS * 1000)) {
@@ -339,7 +341,7 @@ void ASR6501::queueTask() {
             stackWmQueueTask = printFreeStackWatermark("queueTask");
             loopCounter = 0;
         }
-#endif        
+#endif
         vTaskDelay(1000);
     }
 }

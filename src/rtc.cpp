@@ -75,7 +75,7 @@ uint32_t getRuntimeMinutes() {
 
 
 void ntp_init() {
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!WiFi.isConnected()) {
         Serial.println("NTP: time sync aborted, no WiFi");
         return;
     }

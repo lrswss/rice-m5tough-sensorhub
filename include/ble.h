@@ -21,6 +21,7 @@
 #define _BLE_H
 
 #include <NimBLEDevice.h>
+#include "sensors.h"
 
 // UUIDs for Services
 // https://www.bluetooth.com/specifications/assigned-numbers/
@@ -40,6 +41,6 @@
 #define BLE_PROPERTY_NOTIFY_READ (NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ)
 
 void ble_init();
-void ble_notify();
+void ble_notify(sensorReadings_t data);
 
 #endif

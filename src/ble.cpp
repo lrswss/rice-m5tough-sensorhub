@@ -153,12 +153,12 @@ void ble_init() {
     pAdvertising->setMinPreferred(0x06); // iPhone fix?
     pServer->getAdvertising()->start();
     M5.Lcd.print("OK");
-    Serial.println("BLE: server ready, waiting for clients to connect");
+    Serial.println("BLE: GATT server ready, waiting for clients to connect");
     delay(1500);
 }
 
 
-void ble_notify() {
+void ble_notify(sensorReadings_t data) {
     uint16_t hum;
     uint32_t runtime = getRuntimeMinutes();
 
@@ -167,35 +167,35 @@ void ble_notify() {
 
     elaspedTimeCharacteristic.setValue(runtime);
     if (mlx90614_status()) {
-        tempCharacteristic.setValue(sensors.mlxObjectTemp);
+        tempCharacteristic.setValue(data.mlxObjectTemp);
         tempCharacteristic.notify();
     } else if (bme680_status()) {
-        tempCharacteristic.setValue(sensors.bme680Temp);
+        tempCharacteristic.setValue(data.bme680Temp);
         tempCharacteristic.notify(); 
     }
     delay(10);
     if (bme680_status() || sfa30_status()) {
         if (bme680_status())
-            hum = sensors.bme680Hum;
+            hum = data.bme680Hum;
         else
-            hum = sensors.sfa30Hum;
+            hum = data.sfa30Hum;
         humCharacteristic.setValue(hum);
         humCharacteristic.notify();
         delay(10);
     }
     if (sfa30_status()) {
-        hchoCharacteristic.setValue(sensors.sfa30HCHO);
+        hchoCharacteristic.setValue(data.sfa30HCHO);
         hchoCharacteristic.notify();
         delay(10);
     }
     if (bme680_status() == 2) {
-        eco2Characteristic.setValue(sensors.bme680eCO2);
+        eco2Characteristic.setValue(data.bme680eCO2);
         eco2Characteristic.notify();
         delay(10);
-        vocCharacteristic.setValue(sensors.bme680VOC);
+        vocCharacteristic.setValue(data.bme680VOC);
         vocCharacteristic.notify();
         delay(10);
-        iaqCharacteristic.setValue(sensors.bme680Iaq);
+        iaqCharacteristic.setValue(data.bme680Iaq);
         iaqCharacteristic.notify();
     }
     Serial.println("BLE: sending sensor readings");
