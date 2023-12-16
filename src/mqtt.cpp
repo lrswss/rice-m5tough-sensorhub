@@ -86,11 +86,11 @@ void mqtt_init() {
 // try to publish sensor reedings
 bool mqtt_publish(sensorReadings_t data) {
     StaticJsonDocument<384> JSON;
-    static char topic[64], buf[256], statusMsg[32];
+    static char topic[64], buf[288], statusMsg[32];
     static time_t mqttRetry = 0;
 
     if (!WiFi.isConnected()) {
-        Serial.println("MQTT: publish skipped, no WiFi connection");
+        Serial.println("MQTT: publish skipped, no WiFi uplink");
         return false;
     }
 
@@ -116,11 +116,14 @@ bool mqtt_publish(sensorReadings_t data) {
         }
     }
     JSON["rssi"] = WiFi.RSSI();
+    JSON["wifiCons"] = wifiReconnectSuccess + wifiReconnectFail;
     JSON["runtime"] = getRuntimeMinutes();
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
     JSON["heap"] = ESP.getFreeHeap();
     JSON["joinTask"] = stackWmJoinTask;
     JSON["queueTask"] = stackWmQueueTask;
+    JSON["wifiTask"] = stackWmWifiTask;
+    JSON["ntpTask"] = stackWmNtpTask;
 #endif
     JSON["version"] = FIRMWARE_VERSION;
 

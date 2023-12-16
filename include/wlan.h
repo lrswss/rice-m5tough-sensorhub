@@ -24,14 +24,21 @@
 #include <M5Tough.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
+#include "utils.h"
 
 #define WIFI_RETRY_SECS 30
 #define WIFI_PORTAL_SSID "SensorHub"
 #define WIFI_MIN_RSSI 30
-#define WIFI_CONNECT_TIMEOUT_SECS 15
-#define WIFI_SETUP_TIMEOUT_SECS 300
+#define WIFI_CONNECT_TIMEOUT_SECS 10
+#define WIFI_SETUP_TIMEOUT_SECS 180
 
-void wifi_reconnect();
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+extern UBaseType_t stackWmWifiTask;
+#endif
+
+extern uint16_t wifiReconnectFail;
+extern uint16_t wifiReconnectSuccess;
+
 void wifi_dialogStartPortal();
 
 #endif

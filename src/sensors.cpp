@@ -376,7 +376,7 @@ void mlx90614_display() {
     else if (sensors.mlxObjectTemp >= TEMP_THRESHOLD_CYAN)
         color = DARKCYAN;
 
-    M5.Lcd.clearDisplay(color);
+    M5.Lcd.fillRect(0, 0, 320, 205, color);
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSansBold36pt7b);
     M5.Lcd.setCursor(65, 70);

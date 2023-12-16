@@ -73,7 +73,7 @@ void loop() {
         if (mlx90614_changed() || sfa30_changed() || bme680_changed() ||
             tsDiff(lastMqttPublish) > (MQTT_PUBLISH_INTERVAL_SECS * 1000)) {
 
-            mlx90614_display();
+            mlx90614_display();  // sets initial LCD screen layout
             Serial.print("MLX90614: ");
             if (mlx90614_status()) {
                 Serial.print("objectTemperature(");
@@ -128,10 +128,6 @@ void loop() {
 
     // update Date/Time in status line on bottom of the screen
     updateStatusBar();
-
-    // check wifi connection and try to reconnect if down
-    // TODO: turn into background task
-    wifi_reconnect(); // queueStatusMsg("No WiFi connection", 65, true);
 
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
     printFreeHeap();

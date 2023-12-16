@@ -66,7 +66,7 @@ time_t tsDiff(time_t tsMillis) {
 // display status message on bottom of screen
 void displayStatusMsg(const char* msg, uint16_t pos, bool bold, uint16_t cText, uint16_t cBack) {
     M5.Lcd.setTextColor(cText);
-    M5.Lcd.fillRect(0, 205, 320, 40, cBack);
+    M5.Lcd.fillRect(0, 205, 320, 35, cBack);
     if (bold)
         M5.Lcd.setFreeFont(&FreeSansBold12pt7b);
     else
@@ -135,7 +135,7 @@ String getSystemID() {
 void startWatchdog() {
     esp_task_wdt_init(WATCHDOG_TIMEOUT_SEC, true);
     esp_task_wdt_add(NULL);
-    Serial.printf("Watchdog timeout set to %d seconds\n", WATCHDOG_TIMEOUT_SEC);
+    Serial.printf("WTD: timeout set to %d seconds\n", WATCHDOG_TIMEOUT_SEC);
 }
 
 
@@ -143,7 +143,7 @@ void startWatchdog() {
 void stopWatchdog() {
     esp_task_wdt_delete(NULL);
     esp_task_wdt_deinit();
-    Serial.println(F("[WARNING] watchdog disabled"));
+    Serial.println("WDT: disabled");
 }
 
 
@@ -159,7 +159,7 @@ void printFreeHeap() {
     static time_t lastMsgMillis = 0;
 
     if (tsDiff(lastMsgMillis) > (MEMORY_DEBUG_INTERVAL_SECS * 1000)) {
-        Serial.printf(">>> [DEBUG] runtime %d min, FreeHeap %d bytes\n",
+        Serial.printf("DEBUG: runtime %d min, FreeHeap %d bytes\n",
             getRuntimeMinutes(), ESP.getFreeHeap());
         lastMsgMillis = millis();
     }
@@ -167,7 +167,7 @@ void printFreeHeap() {
 
 UBaseType_t printFreeStackWatermark(const char *taskName) {
     UBaseType_t wm = uxTaskGetStackHighWaterMark(NULL);
-    Serial.printf(">>> [DEBUG] %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n",
+    Serial.printf("DEBUG: %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n",
         taskName, getRuntimeMinutes(), xPortGetCoreID(), wm);
     return wm;
 }

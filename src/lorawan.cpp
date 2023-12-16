@@ -92,6 +92,7 @@ const char* ASR6501::sendCmd(const char* cmd, uint16_t timeout) {
 #endif
         snprintf(buf, sizeof(buf), "%s\r\n", cmd);
         this->serial->print(buf);
+        vTaskDelay(100/portTICK_PERIOD_MS);
 
         memset(buf, 0, sizeof(buf));
         startRead = millis(); i = 0;
@@ -107,11 +108,10 @@ const char* ASR6501::sendCmd(const char* cmd, uint16_t timeout) {
                 } else {
                     break;
                 }
-                if (this->serial->available() <= 5)
-                    vTaskDelay(2);
+                vTaskDelay(1/portTICK_PERIOD_MS);
             }
             esp_task_wdt_reset();
-            vTaskDelay(100);
+            vTaskDelay(100/portTICK_PERIOD_MS);
         }
         xSemaphoreGive(this->SerialLock);
         this->deviceState = prevState;
@@ -143,7 +143,7 @@ bool ASR6501::connected() {
         return true;
     } else {
         this->deviceState = ERROR;
-        vTaskDelay(500);
+        vTaskDelay(500/portTICK_PERIOD_MS);
         return false;
     }
 }
@@ -276,10 +276,10 @@ void ASR6501::joinTask() {
                         }
                     }
                     if (this->serial->available() <= 5)
-                        vTaskDelay(2);
+                        vTaskDelay(2/portTICK_PERIOD_MS);
                 }
                 esp_task_wdt_reset();
-                vTaskDelay(500);
+                vTaskDelay(500/portTICK_PERIOD_MS);
             }
             if (tsDiff(startRead) >= (LORAWAN_JOIN_TIMEOUT_SECS * 1000)) {
                 this->deviceState = JOINFAIL;
@@ -292,7 +292,7 @@ void ASR6501::joinTask() {
             loopCounter = 0;
         }
 #endif
-        vTaskDelay(1000);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 }
 
@@ -330,7 +330,7 @@ void ASR6501::queueTask() {
                         Serial.printf("ERROR");
                         queueStatusMsg("LoRaWAN failed", 65, true);
                     }
-                    vTaskDelay(500);
+                    vTaskDelay(500/portTICK_PERIOD_MS);
                     // set state back to 'JOINED' if device is online or 'IDLE' if offline
                     this->joined();
                 }
@@ -342,7 +342,7 @@ void ASR6501::queueTask() {
             loopCounter = 0;
         }
 #endif
-        vTaskDelay(1000);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 }
 
@@ -515,11 +515,12 @@ bool ASR6501::begin(HardwareSerial* serialPort, uint8_t rxPin, uint8_t txPin) {
     M5.Lcd.print("Joining network...");
 
     // join LoRaWAN network, deviceState is 'JOINED' if successful and 'IDLE' if failed
-    xTaskCreate(this->joinTaskWrapper, "joinTask", 2560, this, 10, &this->joinTaskHandle);
-    delay(1000);
+    xTaskCreatePinnedToCore(this->joinTaskWrapper,
+        "joinTask", 2560, this, 5, &this->joinTaskHandle, 0);
 
     // start checking send queue for sensor data
-    xTaskCreate(this->queueTaskWrapper, "queueTask", 2560, this, 5, &this->queueTaskHandle);
+    xTaskCreatePinnedToCore(this->queueTaskWrapper,
+        "queueTask", 2560, this, 5, &this->queueTaskHandle, 1);
 
     return true;
 }

@@ -30,6 +30,10 @@
 
 #define NTP_ADDRESS "de.pool.ntp.org"
 #define NTP_UPDATE  1800  // interval in seconds between updates
+#define NTP_RETRY_SECS 60
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+extern UBaseType_t stackWmNtpTask;
+#endif
 
 void ntp_init();
 uint32_t getRuntimeMinutes();
