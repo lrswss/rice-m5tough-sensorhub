@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023 Lars Wessels, Fraunhofer IOSB
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
 

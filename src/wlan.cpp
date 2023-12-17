@@ -21,7 +21,7 @@
 #include "wlan.h"
 #include "utils.h"
 #include "prefs.h"
-#include "wlan.h"
+#include "display.h"
 
 static bool updateSettings = false;
 static bool endButtonWaitLoop = false;
@@ -40,7 +40,7 @@ static void connectionFailed(const char* apname) {
         return;
     M5.Lcd.clearDisplay(RED);
     M5.Lcd.setTextColor(WHITE);
-    M5.Lcd.setCursor(30, 60);
+    M5.Lcd.setCursor(30, 55);
     M5.Lcd.print("Failed to connect to SSID");
     M5.Lcd.setTextDatum(MC_DATUM);
     M5.Lcd.drawString(apname, 160, 120, 4);
@@ -119,6 +119,7 @@ static void portalTimeout() {
     M5.Lcd.print("Setup portal timeout");
     Serial.println("WiFiManager: setup portal timeout");
     portalTimedOut = true;
+    startWatchdog();
     delay(3000);
 }
 
@@ -143,8 +144,8 @@ static void wifiConnectionTask(void* parameter) {
     while (true) {
         if ((strlen(ssid) > 0) && (millis() > wifiReconnect) && !WiFi.isConnected()) {
             wifiReconnect = millis() + (WIFI_RETRY_SECS * 1000);
-            Serial.printf("WiFi: trying to reconnect to SSID %s...\n", ssid);
-            queueStatusMsg("WiFi reconnect", 75, true);
+            Serial.printf("WiFi: trying to connect to SSID %s...\n", ssid);
+            queueStatusMsg("WiFi connect", 85, true);
 
             if (WiFi.getMode() != WIFI_MODE_NULL) {
                 WiFi.disconnect();
@@ -160,7 +161,7 @@ static void wifiConnectionTask(void* parameter) {
             if (!WiFi.isConnected()) {
                 Serial.printf("WiFi: connection to SSID %s failed, next attempt in %d seconds\n",
                     ssid, WIFI_RETRY_SECS);
-                queueStatusMsg("WiFi failed", 105, true);
+                queueStatusMsg("WiFi failed", 100, true);
                 WiFi.setAutoReconnect(false);
                 wifiReconnectFail++;
             } else {

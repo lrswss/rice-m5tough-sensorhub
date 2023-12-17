@@ -54,11 +54,13 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.4b5"
+#define FIRMWARE_VERSION "1.4b6"
+// uncomment to display Logo at startup
+// requires RGB565 dump as 'const unsigned short logo[]' in logo.h
+#define DISPLAY_LOGO
 
 // clear NVS (and WiFi credentials) if new firmware is detected
 #define CLEAR_NVS_ON_UPDATE
 //#define CLEAR_WIFI_ON_UPDATE
-
 
 #endif

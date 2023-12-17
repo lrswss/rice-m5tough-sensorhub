@@ -21,6 +21,7 @@
 #include "sensors.h"
 #include "utils.h"
 #include "prefs.h"
+#include "display.h"
 
 // IR temparature sensor
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();

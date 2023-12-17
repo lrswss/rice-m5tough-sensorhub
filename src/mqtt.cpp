@@ -25,6 +25,7 @@
 #include "prefs.h"
 #include "config.h"
 #include "lorawan.h"
+#include "display.h"
 
 // setup wifi and mqtt client
 WiFiClient espClient;

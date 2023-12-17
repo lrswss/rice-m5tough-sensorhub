@@ -17,26 +17,35 @@
 
 ***************************************************************************/
 
-#ifndef _UTILS_H
-#define _UTILS_H
+#ifndef _DISPLAY_H
+#define _DISPLAY_H
 
 #include <Arduino.h>
 #include <M5Tough.h>
-#include "esp_system.h"
-#include "esp_ota_ops.h"
-#include "esp_task_wdt.h"
-
-#define WATCHDOG_TIMEOUT_SEC 90
-#define MEMORY_DEBUG_INTERVAL_SECS 20
-
-time_t tsDiff(time_t tsMillis);
-String getSystemID();
-void startWatchdog();
-void stopWatchdog();
-void array2string(const byte *arr, int len, char *buf);
-#ifdef MEMORY_DEBUG_INTERVAL_SECS
-void printFreeHeap();
-UBaseType_t printFreeStackWatermark(const char *taskName);
+#include "FreeSansBold36pt7b.h"
+#include "config.h"
+#ifdef DISPLAY_LOGO
+#include "logo.h"
 #endif
+
+#define STATUS_MESSAGE_QUEUE_SIZE 5
+
+typedef struct {
+    char text[64];
+    uint16_t positionText;
+    uint16_t colorText;
+    bool boldText;
+    uint16_t colorBackground;
+    uint8_t durationSecs;
+} StatusMsg_t;
+
+extern QueueHandle_t statusMsgQueue;
+
+void displayLogo();
+void displaySplashScreen();
+void displayStatusMsg(const char* msg, uint16_t pos, bool bold, uint16_t cText, uint16_t cBack);
+void queueStatusMsg(const char* text, uint16_t pos, bool warning);
+void updateStatusBar();
+void printDegree(uint16_t color);
 
 #endif

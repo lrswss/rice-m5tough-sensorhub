@@ -23,6 +23,7 @@
 #include "prefs.h"
 #include "utils.h"
 #include "rtc.h"
+#include "display.h"
 
 CayenneLPP lpp(LORAWAN_LPP_SIZE);
 ASR6501 LoRaWAN;

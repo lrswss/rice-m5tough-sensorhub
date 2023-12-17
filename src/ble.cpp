@@ -24,6 +24,7 @@
 #include "utils.h"
 #include "rtc.h"
 #include "prefs.h"
+#include "display.h"
 
 // Setup characteristics and descriptors for sensor readings
 // use standard UUIDs for known characteristics
@@ -61,15 +62,15 @@ class deviceCallbacks: public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc *desc) {
         char statusMsg[32];
 
-        sprintf(statusMsg, "BLE %s", NimBLEAddress(desc->peer_ota_addr).toString().c_str());
-        displayStatusMsg(statusMsg, 25, true, BLUE, WHITE);
         Serial.printf("BLE: device %s connected\n", NimBLEAddress(desc->peer_ota_addr).toString().c_str());
+        sprintf(statusMsg, "BLE %s", NimBLEAddress(desc->peer_ota_addr).toString().c_str());
+        queueStatusMsg(statusMsg, 25, false);
         BLEdeviceConnected = true;
     }
 
     void onDisconnect(NimBLEServer* pServer) {
-        displayStatusMsg("BLE disconnected", 50, true, BLUE, WHITE);
         Serial.println("BLE: device disconnected");
+        queueStatusMsg("BLE disconnected", 50, false);
         pServer->getAdvertising()->start(); // restart after disconnecting from client
         BLEdeviceConnected = false;
     }

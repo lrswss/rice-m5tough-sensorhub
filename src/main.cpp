@@ -26,6 +26,7 @@
 #include "prefs.h"
 #include "ble.h"
 #include "lorawan.h"
+#include "display.h"
 
 
 void setup() {
@@ -39,7 +40,9 @@ void setup() {
     statusMsgQueue = xQueueCreate(STATUS_MESSAGE_QUEUE_SIZE, sizeof(StatusMsg_t));
 
     startWatchdog();
+#ifdef DISPLAY_LOGO
     displayLogo();
+#endif
     displaySplashScreen();
     startPrefs();
 
