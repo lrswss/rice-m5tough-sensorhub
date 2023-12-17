@@ -17,17 +17,18 @@
 
 ***************************************************************************/
 
-#include "config.h"
-#include "sensors.h"
-#include "utils.h"
-#include "prefs.h"
-#include "display.h"
+#ifndef _MLX90614_H
+#define _MLX90614_H
 
-sensorReadings_t sensors;
+#include <Arduino.h>
+#include <M5Tough.h>
+#include <Adafruit_MLX90614.h>
 
+bool mlx90614_init();
+bool mlx90614_read();
+bool mlx90614_status();
+bool mlx90614_changed();
+void mlx90614_display();
+void mlx90614_console();
 
-void sensors_init() {
-    mlx90614_init();
-    sfa30_init();
-    bme680_init();
-}
+#endif

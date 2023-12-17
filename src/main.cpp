@@ -46,12 +46,8 @@ void setup() {
     displaySplashScreen();
     startPrefs();
 
-    mlx90614_init();
-    sfa30_init();
-    bme680_init();
-    bme680_dialogResetBSEC();
-
-    wifi_dialogStartPortal();
+    sensors_init();
+    wifi_init();
     ntp_init();
     mqtt_init();
 
@@ -77,49 +73,14 @@ void loop() {
             tsDiff(lastMqttPublish) > (MQTT_PUBLISH_INTERVAL_SECS * 1000)) {
 
             mlx90614_display();  // sets initial LCD screen layout
-            Serial.print("MLX90614: ");
-            if (mlx90614_status()) {
-                Serial.print("objectTemperature(");
-                Serial.print(sensors.mlxObjectTemp, 1);
-                Serial.print(" C), ambientTemperature(");
-                Serial.print(sensors.mlxAmbientTemp, 1);
-                Serial.println(" C)");
-            } else {
-                Serial.println("sensor not ready!");
-            }
+            mlx90614_console();
 
             sfa30_display();
-            Serial.print("SFA30: ");
-            if (sfa30_status()) {
-                Serial.print("Formaldehyde(");
-                Serial.print(sensors.sfa30HCHO, 1);
-                Serial.print(" ppb), Humidity(");
-                Serial.print(sensors.sfa30Hum);
-                Serial.print(" %), Temperature(");
-                Serial.print(sensors.sfa30Temp, 1);
-                Serial.println(" C)");
-            } else {
-                Serial.println("sensor not ready!");
-            }
+            sfa30_console();
 
             bme680_display();
-            Serial.print("BME680: ");
-            if (bme680_status() > 0) {
-                if (bme680_status() > 1) {
-                    Serial.printf("IAQ(%d, %s), eCO2(%d ppm), VOC(", 
-                        sensors.bme680Iaq, bme680_accuracy(), sensors.bme680eCO2);
-                    Serial.print(sensors.bme680VOC, 1);
-                    Serial.print(" ppm), ");
-                } else {
-                    Serial.print("gas sensor warmup, ");
-                }
-                Serial.printf("Gas(%d kOhm), Humdity(%d %%), Temperature(",
-                    sensors.bme680GasResistance, sensors.bme680Hum);
-                Serial.print(sensors.bme680Temp, 1);
-                Serial.println(" C)");
-            } else {
-                Serial.println("sensor not ready!");
-            }
+            bme680_console();
+
             updateStatusBar();
 
             if (mqtt_publish(sensors))

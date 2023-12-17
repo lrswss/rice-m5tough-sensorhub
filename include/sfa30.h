@@ -17,17 +17,18 @@
 
 ***************************************************************************/
 
-#include "config.h"
-#include "sensors.h"
-#include "utils.h"
-#include "prefs.h"
-#include "display.h"
+#ifndef _SFA30_H
+#define _SFA30_H
 
-sensorReadings_t sensors;
+#include <Arduino.h>
+#include <M5Tough.h>
+#include <SensirionI2CSfa3x.h>
 
+bool sfa30_init();
+bool sfa30_read();
+bool sfa30_status();
+bool sfa30_changed();
+void sfa30_display();
+void sfa30_console();
 
-void sensors_init() {
-    mlx90614_init();
-    sfa30_init();
-    bme680_init();
-}
+#endif

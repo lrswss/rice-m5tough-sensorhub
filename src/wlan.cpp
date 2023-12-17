@@ -325,7 +325,8 @@ static void eventStartPortal(Event& e) {
 
 
 // renders yes/no dialog on display to start configuration portal
-void wifi_dialogStartPortal() {
+// if dialog times out WifiManager tries to connect to WiFi
+void wifi_init() {
     uint16_t timeout = 0;
     wifi_config_t conf;
 

@@ -21,10 +21,9 @@
 #define _SENSORS_H
 
 #include <Arduino.h>
-#include <M5Tough.h>
-#include <Adafruit_MLX90614.h>
-#include <SensirionI2CSfa3x.h>
-#include <bsec.h>
+#include "bme680.h"
+#include "sfa30.h"
+#include "mlx90614.h"
 
 #define BME680_STATE_SAVE_PERIOD  UINT32_C(120 * 60 * 1000)  // every 2 hours
 
@@ -45,24 +44,6 @@ typedef struct {
 
 extern sensorReadings_t sensors;
 
-bool mlx90614_init();
-bool mlx90614_read();
-bool mlx90614_status();
-bool mlx90614_changed();
-void mlx90614_display();
-
-bool sfa30_init();
-bool sfa30_read();
-bool sfa30_status();
-bool sfa30_changed();
-void sfa30_display();
-
-bool bme680_init();
-bool bme680_read();
-uint8_t bme680_status();
-const char* bme680_accuracy();
-bool bme680_changed();
-void bme680_display();
-void bme680_dialogResetBSEC();
+void sensors_init();
 
 #endif

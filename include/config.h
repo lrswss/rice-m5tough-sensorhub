@@ -54,7 +54,7 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.4b6"
+#define FIRMWARE_VERSION "1.5b1"
 // uncomment to display Logo at startup
 // requires RGB565 dump as 'const unsigned short logo[]' in logo.h
 #define DISPLAY_LOGO

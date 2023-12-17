@@ -32,13 +32,12 @@
 #define WIFI_CONNECT_TIMEOUT_SECS 10
 #define WIFI_SETUP_TIMEOUT_SECS 180
 
+extern uint16_t wifiReconnectFail;
+extern uint16_t wifiReconnectSuccess;
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
 extern UBaseType_t stackWmWifiTask;
 #endif
 
-extern uint16_t wifiReconnectFail;
-extern uint16_t wifiReconnectSuccess;
-
-void wifi_dialogStartPortal();
+void wifi_init();
 
 #endif

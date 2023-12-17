@@ -17,17 +17,20 @@
 
 ***************************************************************************/
 
-#include "config.h"
-#include "sensors.h"
-#include "utils.h"
-#include "prefs.h"
-#include "display.h"
+#ifndef _BME680_H
+#define _BME680_H
 
-sensorReadings_t sensors;
+#include <Arduino.h>
+#include <M5Tough.h>
+#include <bsec.h>
 
+#define BME680_STATE_SAVE_PERIOD  UINT32_C(120 * 60 * 1000)  // every 2 hours
 
-void sensors_init() {
-    mlx90614_init();
-    sfa30_init();
-    bme680_init();
-}
+bool bme680_init();
+bool bme680_read();
+uint8_t bme680_status();
+bool bme680_changed();
+void bme680_display();
+void bme680_console();
+
+#endif
