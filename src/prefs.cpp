@@ -81,9 +81,9 @@ static void checkFirmwareUpdate() {
 
         nvs.getBytes("sha256", sha256Prev, sizeof(sha256Prev));
         if (memcmp(sha256Prev, sha256, sizeof(sha256Prev))) {
-            Serial.print("New firmware detected");
+            Serial.print("NVS: new firmware detected");
             if (prefs.clearNVSUpdate) {
-                Serial.print(", clear NVS");
+                Serial.print(", clear settings");
                 nvs.clear();
 #ifdef CLEAR_WIFI_ON_UPDATE
                 // remove WiFi credentials as well
@@ -113,9 +113,9 @@ void startPrefs() {
         byte bufPrefs[prefSize];
         nvs.getBytes("appPrefs", bufPrefs, prefSize);
         memcpy(&prefs, bufPrefs, prefSize);
-        Serial.println(F("Restored settings from NVS"));
+        Serial.println(F("NVS: restored settings"));
     } else {
-        Serial.println(F("Save compile time settings to NVS"));
+        Serial.println(F("NVS: reset to compile time default settings"));
         savePrefs(false);
     }
 }

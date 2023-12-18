@@ -104,7 +104,7 @@ const char* ASR6501::sendCmd(const char* cmd, uint16_t timeout) {
                     if (c == 13) c = 32; // CR -> space
                     if (c >= 32 && c <= 126) { // only printable chars
                         buf[i++] = c;
-                        dataRead = true;
+                        dataRead = (i >= 5) ? true : false; // AT+XX...=...
                     }
                 } else {
                     break;
@@ -517,11 +517,11 @@ bool ASR6501::begin(HardwareSerial* serialPort, uint8_t rxPin, uint8_t txPin) {
 
     // join LoRaWAN network, deviceState is 'JOINED' if successful and 'IDLE' if failed
     xTaskCreatePinnedToCore(this->joinTaskWrapper,
-        "joinTask", 2560, this, 5, &this->joinTaskHandle, 0);
+        "joinTask", 2560, this, 10, &this->joinTaskHandle, 0);
 
     // start checking send queue for sensor data
     xTaskCreatePinnedToCore(this->queueTaskWrapper,
-        "queueTask", 2560, this, 5, &this->queueTaskHandle, 1);
+        "queueTask", 2560, this, 10, &this->queueTaskHandle, 1);
 
     return true;
 }

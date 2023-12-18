@@ -38,7 +38,7 @@ static bool mqtt_connect(bool startup) {
   if (!mqtt.connected()) {
     // generate pseudo random client id
     snprintf(clientid, sizeof(clientid), "M5Tough_%lx", random(0xffff));
-    Serial.printf("Connecting to MQTT Broker %s as %s...", prefs.mqttBroker, clientid);
+    Serial.printf("MQTT: connecting to MQTT Broker %s as %s...", prefs.mqttBroker, clientid);
 
 #ifdef MQTT_USER
     if (mqtt.connect(clientid, prefs.mqttUsername, prefs.mqttPassword)) {

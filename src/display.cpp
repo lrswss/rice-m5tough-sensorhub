@@ -81,7 +81,7 @@ uint16_t x = sizeof(statusMsg);
 
     if (tsDiff(lastUpdate) >= 1000) {
         lastUpdate = millis();
-        if (showMessageUntil >= millis()) {
+        if (showMessageUntil > millis()) {
             return;
         } else if (showMessage && (xQueueReceive(statusMsgQueue, &statusMsg, 0) == pdTRUE)) {
             showMessageUntil = millis() + (statusMsg.durationSecs * 1000);
