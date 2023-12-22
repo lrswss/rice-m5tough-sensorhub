@@ -24,7 +24,7 @@
 #include "display.h"
 
 static bool updateSettings = false;
-static bool endButtonWaitLoop = false;
+static bool endButtonWaitLoop = false, startPortal = false;
 static char ssid[32], psk[32];
 static bool portalTimedOut = false;
 
@@ -125,10 +125,18 @@ static void portalTimeout() {
 
 
 // callback function
-// triggers savePrefs() in wifi_manager()
-static void saveSettings() {
+static void saveParams() {
     updateSettings = true;
-    Serial.println("WiFiManager: save settings");
+    Serial.println("WiFiManager: save parameters");
+    startWatchdog();
+}
+
+
+// callback function
+static void saveWifi() {
+    updateSettings = true;
+    Serial.println("WiFiManager: save wifi settings");
+    startWatchdog();
 }
 
 
@@ -209,10 +217,10 @@ static void wifi_manager(bool forcePortal) {
     wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SECS);
     wm.setConfigPortalTimeout(WIFI_SETUP_TIMEOUT_SECS);
     wm.setAPCallback(startConfigPortal);
-    wm.setSaveParamsCallback(saveSettings);
+    wm.setSaveParamsCallback(saveParams);
     wm.setConfigPortalTimeoutCallback(portalTimeout);
     wm.setWebServerCallback(stopWatchdog);
-    wm.setSaveConfigCallback(startWatchdog);
+    wm.setSaveConfigCallback(saveWifi);
     wm.setTitle("SensorHub");
     wm.setMenu(menu, 5);
 
@@ -267,15 +275,15 @@ static void wifi_manager(bool forcePortal) {
         strlcpy(psk, wm.getWiFiPass().c_str(), 32);
     }
 
-    connectionSuccess(false);
-    // autoconnect to preconfigure WiFi network
-    // if unavailable or WiFi credentials are invalid start configuration portal
-    if (!wm.autoConnect(apname.c_str(), randomPassword())) {
-        connectionFailed(wm.getWiFiSSID().c_str());
-        delay(3000);
-    }
-
-    if (forcePortal) {
+    if (!forcePortal) {
+        connectionSuccess(false);
+        // autoconnect to preconfigure WiFi network
+        // if unavailable or WiFi credentials are invalid start configuration portal
+        if (!wm.autoConnect(apname.c_str(), randomPassword())) {
+            connectionFailed(wm.getWiFiSSID().c_str());
+            delay(3000);
+        }
+    } else {
         wm.setConfigPortalTimeout(0);
         wm.setConfigPortalBlocking(false);
         wm.startConfigPortal(apname.c_str(), randomPassword());
@@ -283,7 +291,8 @@ static void wifi_manager(bool forcePortal) {
             wm.process();
             esp_task_wdt_reset();
         }
-        wm.stopConfigPortal();
+        if (wm.getConfigPortalActive())
+            wm.stopConfigPortal();
     }
 
     if (WiFi.isConnected()) {
@@ -319,8 +328,7 @@ static void wifi_manager(bool forcePortal) {
 // button event handler
 static void eventStartPortal(Event& e) {
     endButtonWaitLoop = true;
-    if (!strcmp(e.objName(), "Yes"))
-        wifi_manager(true);
+    startPortal = !strcmp(e.objName(), "Yes") ? true : false;
 }
 
 
@@ -359,6 +367,5 @@ void wifi_init() {
         M5.update();
         delay(1);
     }
-    if (!endButtonWaitLoop)
-        wifi_manager(false);
+    wifi_manager(startPortal);
 }

@@ -21,7 +21,9 @@
 #define _BLE_H
 
 #include <NimBLEDevice.h>
-#include "sensors.h"
+#include "bme680.h"
+#include "sfa30.h"
+#include "mlx90614.h"
 
 // UUIDs for Services
 // https://www.bluetooth.com/specifications/assigned-numbers/

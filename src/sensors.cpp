@@ -18,16 +18,18 @@
 ***************************************************************************/
 
 #include "config.h"
-#include "sensors.h"
+#include "bme680.h"
+#include "sfa30.h"
+#include "mlx90614.h"
 #include "utils.h"
 #include "prefs.h"
 #include "display.h"
+#include "sensors.h"
 
-sensorReadings_t sensors;
+sensorReadings_t readings;
 
-
-void sensors_init() {
-    mlx90614_init();
-    sfa30_init();
-    bme680_init();
+void Sensors::init() {
+    mlx90614.setup();
+    sfa30.setup();
+    bme680.setup();
 }

@@ -19,7 +19,6 @@
 
 #include "config.h"
 #include "ble.h"
-#include "sensors.h"
 #include "wlan.h"
 #include "utils.h"
 #include "rtc.h"
@@ -111,28 +110,28 @@ void ble_init() {
     elaspedTimeCharacteristic.addDescriptor(&elaspedTimeDescriptor);
     elaspedTimeDescriptor.setValue("Total runtime (minutes)");
 
-    if (mlx90614_status() || bme680_status()) {
+    if (mlx90614.status() || bme680.status()) {
         environmentalService->addCharacteristic(&tempCharacteristic);
         tempCharacteristic.addDescriptor(&tempDescriptor);
-        if (mlx90614_status())
+        if (mlx90614.status())
             tempDescriptor.setValue("MLX90614 IR thermometer (C)");
         else
             tempDescriptor.setValue("BME680 temperature sensor (C)");
     }
-    if (bme680_status() || sfa30_status()) {
+    if (bme680.status() || sfa30.status()) {
         environmentalService->addCharacteristic(&humCharacteristic);
         humCharacteristic.addDescriptor(&humDescriptor);
-        if (bme680_status())
+        if (bme680.status())
             humDescriptor.setValue("BME680 humidity sensor (%)");
         else
             humDescriptor.setValue("SFA30 humidity sensor (%)");
     }
-    if (sfa30_status()) {
+    if (sfa30.status()) {
         environmentalService->addCharacteristic(&hchoCharacteristic);
         hchoCharacteristic.addDescriptor(&hchoDescriptor);
         hchoDescriptor.setValue("SFA30 formaldehyde sensor (ppb)");
     }
-    if (bme680_status()) {
+    if (bme680.status()) {
         environmentalService->addCharacteristic(&iaqCharacteristic);
         iaqCharacteristic.addDescriptor(&iaqDescriptor);
         iaqDescriptor.setValue("BME680 Air Quality Index (0-500)");
@@ -167,16 +166,16 @@ void ble_notify(sensorReadings_t data) {
         return;
 
     elaspedTimeCharacteristic.setValue(runtime);
-    if (mlx90614_status()) {
+    if (mlx90614.status()) {
         tempCharacteristic.setValue(data.mlxObjectTemp);
         tempCharacteristic.notify();
-    } else if (bme680_status()) {
+    } else if (bme680.status()) {
         tempCharacteristic.setValue(data.bme680Temp);
         tempCharacteristic.notify(); 
     }
     delay(10);
-    if (bme680_status() || sfa30_status()) {
-        if (bme680_status())
+    if (bme680.status() || sfa30.status()) {
+        if (bme680.status())
             hum = data.bme680Hum;
         else
             hum = data.sfa30Hum;
@@ -184,12 +183,12 @@ void ble_notify(sensorReadings_t data) {
         humCharacteristic.notify();
         delay(10);
     }
-    if (sfa30_status()) {
+    if (sfa30.status()) {
         hchoCharacteristic.setValue(data.sfa30HCHO);
         hchoCharacteristic.notify();
         delay(10);
     }
-    if (bme680_status() == 2) {
+    if (bme680.status() == 2) {
         eco2Characteristic.setValue(data.bme680eCO2);
         eco2Characteristic.notify();
         delay(10);

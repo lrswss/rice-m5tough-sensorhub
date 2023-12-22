@@ -23,7 +23,9 @@
 #include <Arduino.h>
 #include <CayenneLPP.h>
 #include "freertos/queue.h"
-#include "sensors.h"
+#include "bme680.h"
+#include "sfa30.h"
+#include "mlx90614.h"
 #include "utils.h"
 
 #define LORAWAN_MODULE_TIMEOUT_SECS 5

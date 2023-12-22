@@ -71,16 +71,16 @@ void printFreeHeap() {
     static time_t lastMsgMillis = 0;
 
     if (tsDiff(lastMsgMillis) > (MEMORY_DEBUG_INTERVAL_SECS * 1000)) {
-        Serial.printf("DEBUG: runtime %d min, FreeHeap %d bytes\n",
-            getRuntimeMinutes(), ESP.getFreeHeap());
+        Serial.printf("DEBUG[%s]: runtime %d min, FreeHeap %d bytes\n",
+            getTimeString(), getRuntimeMinutes(), ESP.getFreeHeap());
         lastMsgMillis = millis();
     }
 }
 
 UBaseType_t printFreeStackWatermark(const char *taskName) {
     UBaseType_t wm = uxTaskGetStackHighWaterMark(NULL);
-    Serial.printf("DEBUG: %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n",
-        taskName, getRuntimeMinutes(), xPortGetCoreID(), wm);
+    Serial.printf("DEBUG[%s]: %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n",
+        getTimeString(), taskName, getRuntimeMinutes(), xPortGetCoreID(), wm);
     return wm;
 }
 #endif

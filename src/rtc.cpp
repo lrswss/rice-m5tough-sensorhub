@@ -95,11 +95,11 @@ char* getDateString() {
 // returns runtime in minutes
 uint32_t getRuntimeMinutes() {
     static time_t lastMillis = 0;
-    static uint32_t seconds = 0;
+    static float seconds = 0.0;
 
-    seconds += tsDiff(lastMillis) / 1000;
+    seconds += tsDiff(lastMillis) / 1000.0;
     lastMillis = millis();
-    return seconds/60;
+    return (uint32_t)seconds/60;
 }
 
 
@@ -134,8 +134,3 @@ void ntp_init() {
     }
     delay(1500);
 }
-
-
-
-
-

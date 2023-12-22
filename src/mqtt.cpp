@@ -20,7 +20,6 @@
 #include "mqtt.h"
 #include "wlan.h"
 #include "rtc.h"
-#include "sensors.h"
 #include "utils.h"
 #include "prefs.h"
 #include "config.h"
@@ -100,13 +99,13 @@ bool mqtt_publish(sensorReadings_t data) {
 
     JSON.clear();
     JSON["systemId"] = getSystemID();
-    if (mlx90614_status()) {
+    if (mlx90614.status()) {
         JSON["objectTemp"] = int(data.mlxObjectTemp*10)/10.0;
         JSON["ambientTemp"] = int(data.mlxAmbientTemp*10)/10.0;
     }
-    if (sfa30_status())
+    if (sfa30.status())
         JSON["hcho"] = int(data.sfa30HCHO*10)/10.0;
-    if (bme680_status()) {
+    if (bme680.status()) {
         JSON["humidity"] = data.bme680Hum; // 0-100%
         JSON["gasResistance"] = data.bme680GasResistance; // kOhms
         JSON["iaqAccuracy"] = data.bme680IaqAccuracy; // 0-3

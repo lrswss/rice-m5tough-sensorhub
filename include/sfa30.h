@@ -23,12 +23,23 @@
 #include <Arduino.h>
 #include <M5Tough.h>
 #include <SensirionI2CSfa3x.h>
+#include "bme680.h"
 
-bool sfa30_init();
-bool sfa30_read();
-bool sfa30_status();
-bool sfa30_changed();
-void sfa30_display();
-void sfa30_console();
+class SFA30 : public Sensors {
+    public:
+        SFA30();
+        bool setup();
+        bool read();
+        uint8_t status();
+        bool changed();
+        void display();
+        void console();
+    private:
+        SensirionI2CSfa3x sfa;
+        char errormsg[256];
+        uint16_t error;
+        bool ready;
+};
 
+extern SFA30 sfa30;
 #endif

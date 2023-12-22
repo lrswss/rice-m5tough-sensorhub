@@ -24,7 +24,7 @@
 #include "utils.h"
 
 // BME680 (Temp, Hum, Pres, eCO2, VOC)
-static Bsec bme680;
+BME680 bme680;
 static const std::string iaq_accurracy_verbose[4] = {
     "stabilizing",
     "uncertain",
@@ -59,7 +59,15 @@ static const uint8_t bsec_config_iaq[] = {
 static bool endButtonWaitLoop = false;
 
 
-static void bme680_loadState() {
+// constructor for BME680 sensor
+BME680::BME680() {
+    this->bsec = Bsec();
+    this->ready = false;
+    this->error = true;
+}
+
+
+void BME680::loadState(Bsec bsec) {
     uint8_t newState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
 
     if (prefs.bsecState[0] == BSEC_MAX_STATE_BLOB_SIZE) {
@@ -69,8 +77,8 @@ static void bme680_loadState() {
             Serial.print(newState[i], HEX);
         }
         Serial.print(")...");
-        bme680.setState(newState);
-        if (bme680_status())
+        bsec.setState(newState);
+        if (status(bsec) > 0)
             Serial.println("OK");
     } else {
         Serial.println("BME680: no previously saved BSEC state found");
@@ -83,15 +91,15 @@ static void bme680_loadState() {
 // Save current BSEC state to flash if IAQ accuracy
 // reaches 3 for the first time or peridically if
 // BME680_STATE_SAVE_PERIOD has passed
-static bool bme680_updateState() {
+bool BME680::updateState(Bsec bsec) {
     uint8_t currentState[BSEC_MAX_STATE_BLOB_SIZE] = { 0 };
     static time_t lastStateUpdate = 0;
 
-    if ((lastStateUpdate == 0 && sensors.bme680IaqAccuracy >= 3) ||
+    if ((lastStateUpdate == 0 && readings.bme680IaqAccuracy >= 3) ||
         tsDiff(lastStateUpdate) >= BME680_STATE_SAVE_PERIOD) {
 
-        bme680.getState(currentState);
-        if (bme680_status()) {
+        bsec.getState(currentState);
+        if (status(bsec)) {
             Serial.print("BME680: writing BSEC state to flash (");
             prefs.bsecState[0] = BSEC_MAX_STATE_BLOB_SIZE;
             for (uint8_t i = 0; i < BSEC_MAX_STATE_BLOB_SIZE; i++) {
@@ -112,7 +120,8 @@ static bool bme680_updateState() {
 }
 
 
-static void eventResetBSEC(Event& e) {
+// catch 'yes' event from dialogResetBSEC()
+void BME680::eventResetBSEC(Event& e) {
     endButtonWaitLoop = true;
     if (!strcmp(e.objName(), "Yes")) {
         M5.Lcd.clearDisplay(BLUE);
@@ -122,14 +131,15 @@ static void eventResetBSEC(Event& e) {
         Serial.println("BME680: forcing reset of BSEC calibration data");
         M5.Lcd.print("Reset BSEC data...");
         prefs.bsecState[0] = 0; // invalidate bsec settings
-        bme680_loadState();
+        loadState(bme680.bsec);
         M5.Lcd.print("OK");
         delay(1500);
     }
 }
 
 
-static void bme680_dialogResetBSEC() {
+// draw yes/no dialog on LCD asking to reset the BSEC state data
+void BME680::dialogResetBSEC() {
     uint16_t timeout = 0;
 
     if (!prefs.bsecState[0]) // no bsec state data saved so far
@@ -159,52 +169,59 @@ static void bme680_dialogResetBSEC() {
 
 
 // 0: error, 1: gas sensor warmup, 2: all sensor readings available
-uint8_t bme680_status() {
-    if (bme680.status < BSEC_OK) {
-        Serial.printf("BME680: BSEC library error (%d)\n", bme680.status);
+uint8_t BME680::status(Bsec bsec) {
+    if (bsec.status < BSEC_OK) {
+        Serial.printf("BME680: BSEC library error (%d)\n", bsec.status);
         return 0;
-    } else if (bme680.status > BSEC_OK) {
-        Serial.printf("BME680: BSEC library warning (%d)\n", bme680.status);
+    } else if (bsec.status > BSEC_OK) {
+        Serial.printf("BME680: BSEC library warning (%d)\n", bsec.status);
     }
 
-    if (bme680.bme680Status < BME680_OK) {
-        Serial.printf("BME680: sensor code (%d)\n", bme680.bme680Status);
+    if (bsec.bme680Status < BME680_OK) {
+        Serial.printf("BME680: sensor code (%d)\n", bsec.bme680Status);
         return 0;
-    } else if (bme680.bme680Status > BME680_OK) {
-        Serial.printf("BME680: sensor warning (%d)\n", bme680.bme680Status);
+    } else if (bsec.bme680Status > BME680_OK) {
+        Serial.printf("BME680: sensor warning (%d)\n", bsec.bme680Status);
     }
 
-    if (bme680.runInStatus < 1) // gas sensor warmup
+    if (bsec.runInStatus < 1) // gas sensor warmup
         return 1;
 
     return 2;  // ready, delivering all readings
 }
 
 
-static const char* bme680_accuracy() {
-    return iaq_accurracy_verbose[sensors.bme680IaqAccuracy].c_str();
+// public method for static status() function call
+uint8_t BME680::status() {
+    return status(this->bsec);
+}
+
+
+// return current accuracy of eCO2 and VOC readings as string value
+const char* BME680::accuracy(uint8_t data) {
+    return iaq_accurracy_verbose[data].c_str();
 }
 
 
 // initialize BME680 sensor (Temp, Hum, Pres, eCO2, VOC) on I2C bus
-bool bme680_init() {
+bool BME680::setup() {
     bsec_version_t bsec_version;
     char statusMsg[64];
 
-    bme680.begin(BME680_I2C_ADDR_PRIMARY, Wire);
-    if (bme680_status()) {
-        bme680.setConfig(bsec_config_iaq);
-        if (!bme680_status()) {
+    this->bsec.begin(BME680_I2C_ADDR_PRIMARY, Wire);
+    if (this->status()) {
+        this->bsec.setConfig(bsec_config_iaq);
+        if (!this->status()) {
             Serial.println("ERROR: Failed to set BME680 configuration");
         } else {
-            bme680_loadState();
-            bme680.updateSubscription(sensorList, 7, BSEC_SAMPLE_RATE_LP); // see bsec_config_iaq[]
-            if (!bme680_status())
+            this->loadState(this->bsec);
+            this->bsec.updateSubscription(sensorList, 7, BSEC_SAMPLE_RATE_LP); // see bsec_config_iaq[]
+            if (!this->status())
                 Serial.println("ERROR: Failed to subscribe to BME680 sensors");
         }
     }
-    if (!bme680_status()) {
-        snprintf(statusMsg, sizeof(statusMsg), "BME680 failed, error %d", bme680.bme680Status);
+    if (!this->status()) {
+        snprintf(statusMsg, sizeof(statusMsg), "BME680 failed, error %d", this->bsec.bme680Status);
         displayStatusMsg(statusMsg, 20, false, WHITE, RED);
         Serial.printf("BME680: failed to initialize sensor");
         delay(3000);
@@ -217,20 +234,20 @@ bool bme680_init() {
         delay(1500);
         return true;
     }
-    bme680_dialogResetBSEC();
+    this->dialogResetBSEC();
 }
 
 
 // get current readings from BME680 and copy them to sensor struct 
-bool bme680_read() {
-    if (bme680.run() && bme680_status()) {
-        sensors.bme680Temp = bme680.temperature;
-        sensors.bme680Hum = int(bme680.humidity);
-        sensors.bme680Iaq = int(bme680.iaq);
-        sensors.bme680IaqAccuracy = int(bme680.iaqAccuracy);
-        sensors.bme680GasResistance = int(bme680.gasResistance/1000); // kOhm
-        sensors.bme680eCO2 = int(bme680.co2Equivalent);
-        sensors.bme680VOC = bme680.breathVocEquivalent;
+bool BME680::read() {
+    if (this->bsec.run() && this->status()) {
+        readings.bme680Temp = this->bsec.temperature;
+        readings.bme680Hum = int(this->bsec.humidity);
+        readings.bme680Iaq = int(this->bsec.iaq);
+        readings.bme680IaqAccuracy = int(this->bsec.iaqAccuracy);
+        readings.bme680GasResistance = int(this->bsec.gasResistance/1000); // kOhm
+        readings.bme680eCO2 = int(this->bsec.co2Equivalent);
+        readings.bme680VOC = this->bsec.breathVocEquivalent;
         return true;
     } else {
         return false;
@@ -240,43 +257,43 @@ bool bme680_read() {
 
 // returns true if either BME680's temperature or gas 
 // resistance readings have changed significantly
-bool bme680_changed() {
+bool BME680::changed() {
     static float lastGasRes = 0.0, lastTemp = 0.0;
     uint8_t lastHum;
     bool changed = false;
 
-    if (!bme680_status())
+    if (!this->status())
         return false;
-    if (abs(lastGasRes - sensors.bme680GasResistance) >= GASRESISTANCE_PUBLISH_THRESHOLD) // kOhm
+    if (abs(lastGasRes - readings.bme680GasResistance) >= GASRESISTANCE_PUBLISH_THRESHOLD) // kOhm
         changed = true;
-    if (abs(lastTemp - sensors.bme680Temp) >= TEMP_PUBLISH_THRESHOLD)
+    if (abs(lastTemp - readings.bme680Temp) >= TEMP_PUBLISH_THRESHOLD)
         changed = true;
-    if (abs(lastHum - sensors.bme680Hum) >= HUM_PUBLISH_THRESHOLD)
+    if (abs(lastHum - readings.bme680Hum) >= HUM_PUBLISH_THRESHOLD)
         changed = true;
 
-    lastHum = sensors.bme680Hum;
-    lastTemp = sensors.bme680Temp;
-    lastGasRes = sensors.bme680GasResistance;
+    lastHum = readings.bme680Hum;
+    lastTemp = readings.bme680Temp;
+    lastGasRes = readings.bme680GasResistance;
 
     return changed;
 }
 
 
 // display BME680 readings an M5 Tough's OLED display if available
-void bme680_display() {
-    if (bme680_status() > 0) {
-        if (bme680.runInStatus > 0) {
+void BME680::display() {
+    if (this->status() > 0) {
+        if (this->bsec.runInStatus > 0) {
             M5.Lcd.setCursor(175, 150);
             M5.Lcd.print("VOC: ");  // shown right after HCHO on display
-            M5.Lcd.print(sensors.bme680VOC, 1);
+            M5.Lcd.print(readings.bme680VOC, 1);
             M5.Lcd.setCursor(15, 180); // new line on display with IAQ/eCO2 readings
             M5.Lcd.print("IAQ: ");
-            M5.Lcd.print(sensors.bme680Iaq);
+            M5.Lcd.print(readings.bme680Iaq);
             M5.Lcd.print("/");
-            M5.Lcd.print(sensors.bme680IaqAccuracy);
+            M5.Lcd.print(readings.bme680IaqAccuracy);
             M5.Lcd.setCursor(175, 180);
             M5.Lcd.print("eCO2: ");
-            M5.Lcd.print(sensors.bme680eCO2);
+            M5.Lcd.print(readings.bme680eCO2);
         } else {
             M5.Lcd.setCursor(175, 150);
             M5.Lcd.print("VOC: --.-"); // placed on display after HCHO reading
@@ -285,7 +302,7 @@ void bme680_display() {
             M5.Lcd.setCursor(175, 180);
             M5.Lcd.print("eCO2: ---");
         }
-        bme680_updateState();
+        updateState(this->bsec);
     } else {
         M5.Lcd.setCursor(175, 150);
         M5.Lcd.print("VOC: n/a"); // first row after HCHO
@@ -298,20 +315,20 @@ void bme680_display() {
 
 
 // print sensor status/readings on serial console
-void bme680_console() {
+void BME680::console() {
     Serial.print("BME680: ");
-    if (bme680_status() > 0) {
-        if (bme680_status() > 1) {
+    if (this->status() > 0) {
+        if (this->status() > 1) {
             Serial.printf("IAQ(%d, %s), eCO2(%d ppm), VOC(", 
-                sensors.bme680Iaq, bme680_accuracy(), sensors.bme680eCO2);
-            Serial.print(sensors.bme680VOC, 1);
+                readings.bme680Iaq, accuracy(readings.bme680IaqAccuracy), readings.bme680eCO2);
+            Serial.print(readings.bme680VOC, 1);
             Serial.print(" ppm), ");
         } else {
             Serial.print("gas sensor warmup, ");
         }
         Serial.printf("Gas(%d kOhm), Humdity(%d %%), Temperature(",
-            sensors.bme680GasResistance, sensors.bme680Hum);
-        Serial.print(sensors.bme680Temp, 1);
+            readings.bme680GasResistance, readings.bme680Hum);
+        Serial.print(readings.bme680Temp, 1);
         Serial.println(" C)");
     } else {
         Serial.println("sensor not ready!");

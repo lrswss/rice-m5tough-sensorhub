@@ -21,11 +21,6 @@
 #define _SENSORS_H
 
 #include <Arduino.h>
-#include "bme680.h"
-#include "sfa30.h"
-#include "mlx90614.h"
-
-#define BME680_STATE_SAVE_PERIOD  UINT32_C(120 * 60 * 1000)  // every 2 hours
 
 typedef struct {
     float mlxObjectTemp;
@@ -42,8 +37,16 @@ typedef struct {
     float bme680VOC; // 0.13–2.5 ppm
 } sensorReadings_t;
 
-extern sensorReadings_t sensors;
+class Sensors {
+    public:
+        static void init();
+        virtual bool setup() = 0;
+        virtual bool read() = 0;
+        virtual uint8_t status() = 0;
+        virtual bool changed() = 0;
+        virtual void display() = 0;
+        virtual void console() = 0;
+};
 
-void sensors_init();
-
+extern sensorReadings_t readings;
 #endif

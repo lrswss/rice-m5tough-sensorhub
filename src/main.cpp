@@ -46,7 +46,7 @@ void setup() {
     displaySplashScreen();
     startPrefs();
 
-    sensors_init();
+    Sensors::init();
     wifi_init();
     ntp_init();
     mqtt_init();
@@ -59,34 +59,34 @@ void setup() {
 void loop() {
     static time_t lastReading = 0, lastMqttPublish = 0;
 
-    bme680_read(); // calculates readings every 3 seconds and calibrates sensors
+    bme680.read(); // calculates readings every 3 seconds and calibrates sensors
 
     // read sensor data every READING_INTERVAL_SEC
     if (tsDiff(lastReading) > (SENSOR_READING_INTERVAL_SEC * 1000)) {
         lastReading = millis();
-        mlx90614_read();
-        sfa30_read();
+        mlx90614.read();
+        sfa30.read();
 
         // display and publish sensor readings on significant changes
         // or if mqtt publishing interval has passed
-        if (mlx90614_changed() || sfa30_changed() || bme680_changed() ||
+        if (mlx90614.changed() || sfa30.changed() || bme680.changed() ||
             tsDiff(lastMqttPublish) > (MQTT_PUBLISH_INTERVAL_SECS * 1000)) {
 
-            mlx90614_display();  // sets initial LCD screen layout
-            mlx90614_console();
+            mlx90614.display();  // sets initial LCD screen layout
+            mlx90614.console();
 
-            sfa30_display();
-            sfa30_console();
+            sfa30.display();
+            sfa30.console();
 
-            bme680_display();
-            bme680_console();
+            bme680.display();
+            bme680.console();
 
             updateStatusBar();
 
-            if (mqtt_publish(sensors))
+            if (mqtt_publish(readings))
                 lastMqttPublish = millis();
-            ble_notify(sensors);
-            LoRaWAN.queue(sensors);
+            ble_notify(readings);
+            LoRaWAN.queue(readings);
         }
     }
 

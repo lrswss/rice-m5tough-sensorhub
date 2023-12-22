@@ -23,7 +23,9 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include "sensors.h"
+#include "bme680.h"
+#include "sfa30.h"
+#include "mlx90614.h"
 #include "config.h"
 
 #define MQTT_RETRY_SECS 10

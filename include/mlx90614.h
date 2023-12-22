@@ -23,12 +23,22 @@
 #include <Arduino.h>
 #include <M5Tough.h>
 #include <Adafruit_MLX90614.h>
+#include "bme680.h"
 
-bool mlx90614_init();
-bool mlx90614_read();
-bool mlx90614_status();
-bool mlx90614_changed();
-void mlx90614_display();
-void mlx90614_console();
+class MLX90614 : public Sensors {
+    public:
+        MLX90614();
+        bool setup();
+        bool read();
+        uint8_t status();
+        bool changed();
+        void display();
+        void console();
+    private:
+        Adafruit_MLX90614 mlx;
+        bool ready;
+        bool error;
+};
 
+extern MLX90614 mlx90614;
 #endif

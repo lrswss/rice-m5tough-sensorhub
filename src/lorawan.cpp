@@ -19,7 +19,6 @@
 
 #include "config.h"
 #include "lorawan.h"
-#include "sensors.h"
 #include "prefs.h"
 #include "utils.h"
 #include "rtc.h"
@@ -316,8 +315,8 @@ void ASR6501::queueTask() {
         if (this->deviceState == JOINED && this->deviceState != SENDING && 
                 tsDiff(lastRun) > (prefs.lorawanIntervalSecs * 1000)) {
             lastRun = millis();
-            if (xQueueReceive(this->msgQueue, &sensors, 0) == pdTRUE) {
-                strlcpy(payload, this->encodeLPP(sensors), sizeof(payload));
+            if (xQueueReceive(this->msgQueue, &readings, 0) == pdTRUE) {
+                strlcpy(payload, this->encodeLPP(readings), sizeof(payload));
                 if (strlen(payload) > 1) {
                     deviceState = SENDING;
                     Serial.printf("LoRaWAN: sending payload%s...", 
@@ -354,20 +353,20 @@ void ASR6501::queueTaskWrapper(void* _this) {
 
 
 // encodes sensor data as CayenneLPP and returns payload as hex string
-const char* ASR6501::encodeLPP(sensorReadings_t sensors) {
+const char* ASR6501::encodeLPP(sensorReadings_t data) {
     static char payload[96];
 
     lpp.reset();
-    if (mlx90614_status())
-        lpp.addTemperature(1, sensors.mlxObjectTemp);
-    if (bme680_status() || sfa30_status())
-        lpp.addRelativeHumidity(2, bme680_status() ? sensors.bme680Hum : sensors.sfa30Hum);
-    if (sfa30_status())
-        lpp.addConcentration(3, sensors.sfa30HCHO*10); // ppb*10
-    if (bme680_status() > 1) {
-        lpp.addGenericSensor(4, sensors.bme680Iaq);
-        lpp.addConcentration(5, sensors.bme680eCO2); // ppm
-        lpp.addConcentration(6, sensors.bme680VOC*10); // ppm*10
+    if (mlx90614.status())
+        lpp.addTemperature(1, data.mlxObjectTemp);
+    if (bme680.status() || sfa30.status())
+        lpp.addRelativeHumidity(2, bme680.status() ? data.bme680Hum : data.sfa30Hum);
+    if (sfa30.status())
+        lpp.addConcentration(3, data.sfa30HCHO*10); // ppb*10
+    if (bme680.status() > 1) {
+        lpp.addGenericSensor(4, data.bme680Iaq);
+        lpp.addConcentration(5, data.bme680eCO2); // ppm
+        lpp.addConcentration(6, data.bme680VOC*10); // ppm*10
     }
     lpp.addGenericSensor(7, getRuntimeMinutes());
 

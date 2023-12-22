@@ -23,14 +23,30 @@
 #include <Arduino.h>
 #include <M5Tough.h>
 #include <bsec.h>
+#include "sensors.h"
 
 #define BME680_STATE_SAVE_PERIOD  UINT32_C(120 * 60 * 1000)  // every 2 hours
 
-bool bme680_init();
-bool bme680_read();
-uint8_t bme680_status();
-bool bme680_changed();
-void bme680_display();
-void bme680_console();
+class BME680 : public Sensors {
+    public:
+        BME680();
+        bool setup();
+        bool read();
+        uint8_t status();
+        bool changed();
+        void display();
+        void console();
+    private:
+        Bsec bsec;
+        bool ready;
+        bool error;
+        static const char* accuracy(uint8_t data);
+        static void dialogResetBSEC();
+        static bool updateState(Bsec bsec);
+        static void loadState(Bsec bsec);
+        static uint8_t status(Bsec bsec);
+        static void eventResetBSEC(Event& e);
+};
 
+extern BME680 bme680;
 #endif
