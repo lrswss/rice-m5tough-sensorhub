@@ -36,7 +36,7 @@ MLX90614::MLX90614() {
 // initialize MLX90614 IR temperature sensor on I2C bus
 bool MLX90614::setup() {
     if (!this->mlx.begin()) {
-        displayStatusMsg("MLX90614 failed", 55, false, WHITE, RED);
+        displayStatusMsg("MLX90614 failed", 70, false, WHITE, RED);
         Serial.println("MLX90614: failed to detect sensor");
         delay(3000);
         return false;
@@ -108,10 +108,12 @@ void MLX90614::display() {
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSansBold36pt7b);
     M5.Lcd.setCursor(65, 70);
-    if (this->status())
+    if (this->status()) {
         M5.Lcd.print(readings.mlxObjectTemp, 1);
-    else
+    } else {
+        M5.Lcd.setCursor(85, 70);
         M5.Lcd.print("n/a");
+    }
     printDegree(color);
     M5.Lcd.print(" C");
   

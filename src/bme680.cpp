@@ -222,7 +222,7 @@ bool BME680::setup() {
     }
     if (!this->status()) {
         snprintf(statusMsg, sizeof(statusMsg), "BME680 failed, error %d", this->bsec.bme680Status);
-        displayStatusMsg(statusMsg, 20, false, WHITE, RED);
+        displayStatusMsg(statusMsg, 40, false, WHITE, RED);
         Serial.printf("BME680: failed to initialize sensor");
         delay(3000);
         return false;

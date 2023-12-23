@@ -21,6 +21,7 @@
 #include "utils.h"
 #include "prefs.h"
 #include "rtc.h"
+#include "display.h"
 
 
 // rollover safe comparison for given timestamp with millis()

@@ -58,9 +58,9 @@ bool ASR6501::setupFailed(const char* msg) {
     delay(1500);
     M5.Lcd.clearDisplay(RED);
     M5.Lcd.setTextColor(WHITE);
-    M5.Lcd.setCursor(20,70);
+    M5.Lcd.setCursor(50,70);
     M5.Lcd.print("Failed to setup serial");
-    M5.Lcd.setCursor(50,100);
+    M5.Lcd.setCursor(60,100);
     M5.Lcd.print("LoRaWAN adapter");
     Serial.println(msg);
     this->deviceState = ERROR;

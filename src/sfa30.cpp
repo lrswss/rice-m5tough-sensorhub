@@ -41,7 +41,7 @@ bool SFA30::setup() {
     this->error = this->sfa.startContinuousMeasurement();
     if (this->error != 0) {
         snprintf(statusMsg, sizeof(statusMsg), "SFA30 failed, error %d", this->error);
-        displayStatusMsg(statusMsg, 30, false, WHITE, RED);
+        displayStatusMsg(statusMsg, 40, false, WHITE, RED);
         errorToString(this->error, this->errormsg, 256);
         Serial.printf("SFA30: failed to initialize sensor, %s\n", this->errormsg);
         delay(3000);

@@ -90,7 +90,10 @@ uint16_t x = sizeof(statusMsg);
             showMessage = false; // display date/time next
         } else {
             displayStatusMsg(getDateString(), 15, false, WHITE, BLUE);
-            M5.Lcd.setCursor(215, 230);
+            if (time(nullptr) > 1701388800)
+                M5.Lcd.setCursor(215, 230);
+            else
+                M5.Lcd.setCursor(245, 230);
             M5.Lcd.print(getTimeString());
             showMessage = (uxQueueMessagesWaiting(statusMsgQueue) > 0) ? true : false;
         }

@@ -104,7 +104,7 @@ static void startConfigPortal(WiFiManager *wm) {
     M5.Lcd.setCursor(20, 130);
     M5.Lcd.printf("Password: %s", randomPassword());
     M5.Lcd.setCursor(20, 160);
-    M5.Lcd.print("IP: 192.168.4.1");
+    M5.Lcd.printf("IP: %s", WiFi.softAPIP().toString().c_str());
     Serial.printf("WiFiManager: start setup portal on SSID %s...\n", wm->getConfigPortalSSID().c_str());
 }
 
