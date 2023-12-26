@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023 Lars Wessels, Fraunhofer IOSB
   
   This file a part of the "RICE-M5Tough-SensorHub" source code.
 
@@ -54,7 +54,7 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.5b4"
+#define FIRMWARE_VERSION "1.5b5"
 // uncomment to display Logo at startup
 // requires RGB565 dump as 'const unsigned short logo[]' in logo.h
 #define DISPLAY_LOGO

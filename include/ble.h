@@ -35,6 +35,8 @@
 #define BLE_HARDWAREREVISION_UUID (BLEUUID((uint16_t)0x2A27))
 #define BLE_MODELNUMBER_UUID (BLEUUID((uint16_t)0x2A24))
 #define BLE_ELAPSEDTIME_UUID (BLEUUID((uint16_t)0x2BF2))
+#define BLE_BATLEVEL_UUID (BLEUUID((uint16_t)0x2A19))
+
 
 // custom UUIDs for characteristic missing in abNUove assigned numbers specs
 #define BLE_UUID_IAQ "3118ab5a-c9e6-48d1-91c2-3ca1652a61c6"  // Air Quality Index

@@ -24,6 +24,13 @@
 #include "display.h"
 
 
+// gesture to restart ESP
+Gesture swipeRight("right", 100, DIR_RIGHT, 50, true);
+static bool endButtonWaitLoop = false;
+static bool restartESP = false;
+bool showDialog = false;
+
+
 // rollover safe comparison for given timestamp with millis()
 time_t tsDiff(time_t tsMillis) {
     if ((millis() - tsMillis) < 0)
@@ -64,6 +71,99 @@ void stopWatchdog() {
 void array2string(const byte *arr, int len, char *buf) {
     for (int i = 0; i < len; i++)
         sprintf(buf + i * 2, "%02X", arr[i]);
+}
+
+
+// display usb power status and battery info (if availabl) at startup
+// and every BATTERY_LEVEL_INTERVAL_SECS in status message bar
+void displayPowerStatus(bool fullScreen) {
+    static time_t lastCheck = 0;
+    static char statusMsg[32], vbat[4];
+    uint16_t displayInterval = BATTERY_LEVEL_INTERVAL_SECS;
+    float batLevel = 0.0;
+
+    if (M5.Axp.GetBatVoltage() < 1.0)
+        return;
+
+    dtostrf(M5.Axp.GetBatVoltage(), 4, 2, vbat);
+    batLevel = M5.Axp.GetBatteryLevel();
+
+    if (batLevel <= BATTERY_WARNING_LEVEL)
+        displayInterval = 30;
+
+    if (fullScreen) {
+        M5.Lcd.clearDisplay(BLUE);
+        M5.Lcd.setTextColor(WHITE);
+        M5.Lcd.setFreeFont(&FreeSans12pt7b);
+        M5.Lcd.setCursor(15, 40);
+        M5.Lcd.printf("USB powered: %s", usbPowered() ? "Yes" : "No");
+        M5.Lcd.setCursor(15, 70);
+        M5.Lcd.printf("Internal Battery: %d%%", int(batLevel));
+        M5.Lcd.setCursor(15, 100);
+        M5.Lcd.printf("Battery Voltage: %sV", vbat);
+        M5.Lcd.setCursor(15, 130);
+        M5.Lcd.printf("Battery Charging: %s", M5.Axp.isCharging() ? "Yes" : "No");
+        Serial.printf("BAT: %sV (%d%%), ", vbat, int(batLevel));
+        Serial.printf("%scharging\n", M5.Axp.isCharging() ? "" : "not ");
+        delay(1500);
+    } else if (!usbPowered() && (tsDiff(lastCheck) > (displayInterval * 1000))) {
+        lastCheck = millis();
+        snprintf(statusMsg, sizeof(statusMsg), "Battery %d%%", int(batLevel));
+        Serial.printf("BAT: %sV (%d%%), ", vbat, int(batLevel));
+        Serial.printf("%scharging\n", M5.Axp.isCharging() ? "" : "not ");
+        if (batLevel >= BATTERY_WARNING_LEVEL)
+            queueStatusMsg(statusMsg, 95, false);
+        else
+            queueStatusMsg(statusMsg, 95, true);
+    }
+}
+
+
+// button event handler
+static void eventRestartESP(Event& e) {
+    endButtonWaitLoop = true;
+    restartESP = !strcmp(e.objName(), "Yes") ? true : false;
+}
+
+
+// show yes/no dialog to confirm restart triggered by swipe gesture
+void confirmRestart(Event &e) {
+    uint16_t timeout = 0;
+
+    ButtonColors onColor = {RED, WHITE, WHITE};
+    ButtonColors offColor = {DARKGREEN, WHITE, WHITE};
+    Button bYes(35, 110, 120, 60, false, "Yes", offColor, onColor, MC_DATUM);
+    Button bNo(165, 110, 120, 60, false, "No", offColor, onColor, MC_DATUM);
+
+    showDialog = true;
+    M5.Lcd.clearDisplay(WHITE);
+    M5.Lcd.setTextColor(BLACK);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setCursor(50, 80);
+    M5.Lcd.print("Restart Sensor Hub?");
+
+    M5.Buttons.draw();
+    bYes.addHandler(eventRestartESP, E_RELEASE);
+    bNo.addHandler(eventRestartESP, E_RELEASE);
+    while (timeout++ < (DISPLAY_DIALOG_TIMEOUT_SECS * 1000) && !endButtonWaitLoop) {
+        M5.update();
+        delay(1);
+    }
+    if (endButtonWaitLoop && restartESP) {
+        M5.Lcd.clearDisplay(BLUE);
+        M5.Lcd.setTextColor(WHITE);
+        M5.Lcd.setFreeFont(&FreeSans12pt7b);
+        M5.Lcd.setCursor(20,40);
+        M5.Lcd.print("Restarting Sensor Hub...");
+        savePrefs(true);
+    }
+    showDialog = false;
+}
+
+
+// returns true if M5Tough is powered over USB
+bool usbPowered() {
+    return M5.Axp.GetVinVoltage() > 3.5 ? true : false;
 }
 
 

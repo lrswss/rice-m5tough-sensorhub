@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023 Lars Wessels, Fraunhofer IOSB
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
 
@@ -32,7 +32,7 @@
 void setup() {
     M5.begin(true, false, true, true, kMBusModeOutput);
     delay(1000);
-    Serial.println("(c) 2023 Fraunhofer IOSB");
+    Serial.println("(c) 2023 Lars Wessels, Fraunhofer IOSB");
     Serial.printf("Firmware %s v%s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
     Serial.printf("Compiled on %s, %s\n", __DATE__, __TIME__);
 
@@ -47,11 +47,13 @@ void setup() {
     startPrefs();
 
     Sensors::init();
+    swipeRight.addHandler(confirmRestart, E_GESTURE);
     wifi_init();
     ntp_init();
     mqtt_init();
 
     ble_init();
+    displayPowerStatus(true);
     LoRaWAN.begin(&Serial2, LORAWAN_RX_PIN, LORAWAN_TX_PIN);
 }
 
@@ -59,6 +61,7 @@ void setup() {
 void loop() {
     static time_t lastReading = 0, lastMqttPublish = 0;
 
+    M5.update();
     bme680.read(); // calculates readings every 3 seconds and calibrates sensors
 
     // read sensor data every READING_INTERVAL_SEC
@@ -66,6 +69,7 @@ void loop() {
         lastReading = millis();
         mlx90614.read();
         sfa30.read();
+        displayPowerStatus(false);
 
         // display and publish sensor readings on significant changes
         // or if mqtt publishing interval has passed

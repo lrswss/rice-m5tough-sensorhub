@@ -66,7 +66,7 @@ void displayStatusMsg(const char* msg, uint16_t pos, bool bold, uint16_t cText, 
     else
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(pos, 230);
-    M5.Lcd.printf(msg);
+    M5.Lcd.print(msg);
 }
 
 
@@ -77,9 +77,7 @@ void updateStatusBar() {
     static bool showMessage = false;
     StatusMsg_t statusMsg;
 
-uint16_t x = sizeof(statusMsg);
-
-    if (tsDiff(lastUpdate) >= 1000) {
+    if (tsDiff(lastUpdate) >= 1000 && !showDialog) {
         lastUpdate = millis();
         if (showMessageUntil > millis()) {
             return;

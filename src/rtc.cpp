@@ -201,6 +201,7 @@ void ntp_init() {
         setSystemTime(timeClient.getEpochTime());
         M5.Lcd.print("OK");
         Serial.println("OK");
+        delay(1000);
         M5.Lcd.setCursor(20, 70);
         M5.Lcd.print("Set RTC from NTP...");
         setRTCFromNTP();
@@ -208,6 +209,7 @@ void ntp_init() {
     } else {
         M5.Lcd.print("ERR");
         Serial.println("ERROR");
+        delay(1000);
         M5.Lcd.setCursor(20, 70);
         M5.Lcd.print("Set time from RTC...");
         setTimeFromRTC();

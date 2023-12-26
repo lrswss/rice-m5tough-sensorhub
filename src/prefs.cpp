@@ -149,7 +149,7 @@ void savePrefs(bool restart) {
     nvs.putBytes("appPrefs", &prefs, sizeof(prefs));
     nvs.putBool("saved", true);
     if (restart) {
-        Serial.println(F("Changed settings required ESP restart..."));
+        Serial.println(F("Save settings and restarting device..."));
         nvs.end();
         ESP.restart();
     }

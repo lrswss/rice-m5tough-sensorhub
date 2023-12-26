@@ -352,7 +352,7 @@ void wifi_init() {
     Button bYes(35, 130, 120, 60, false, "Yes", offColor, onColor, MC_DATUM);
     Button bNo(165, 130, 120, 60, false, "No", offColor, onColor, MC_DATUM);
 
-    M5.Lcd.fillScreen(WHITE);
+    M5.Lcd.clearDisplay(WHITE);
     M5.Lcd.setTextColor(BLACK);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
     M5.Lcd.setCursor(60, 70);

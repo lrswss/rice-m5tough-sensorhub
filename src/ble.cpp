@@ -52,6 +52,7 @@ NimBLEDescriptor elaspedTimeDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERT
 NimBLECharacteristic modelCharacteristic(BLE_MODELNUMBER_UUID, NIMBLE_PROPERTY::READ);
 NimBLECharacteristic manufacturerCharacteristic(BLE_MANUFACTURER_UUID, NIMBLE_PROPERTY::READ);
 NimBLECharacteristic firmwareCharacteristic(BLE_FIRMWAREREVISION_UUID, NIMBLE_PROPERTY::READ);
+NimBLECharacteristic batteryCharacteristic(BLE_BATLEVEL_UUID, NIMBLE_PROPERTY::READ);
 
 static bool BLEdeviceConnected = false;
 
@@ -109,6 +110,10 @@ void ble_init() {
     devInfoService->addCharacteristic(&elaspedTimeCharacteristic);
     elaspedTimeCharacteristic.addDescriptor(&elaspedTimeDescriptor);
     elaspedTimeDescriptor.setValue("Total runtime (minutes)");
+    if (M5.Axp.GetBatVoltage() >= 1.0) {
+        devInfoService->addCharacteristic(&batteryCharacteristic);
+        batteryCharacteristic.setValue(int(M5.Axp.GetBatteryLevel()));
+    }
 
     if (mlx90614.status() || bme680.status()) {
         environmentalService->addCharacteristic(&tempCharacteristic);
