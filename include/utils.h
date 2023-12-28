@@ -26,13 +26,18 @@
 #include "esp_ota_ops.h"
 #include "esp_task_wdt.h"
 
+#define BATTERY_LEVEL_INTERVAL_SECS 120
+#define BATTERY_WARNING_LEVEL 50
+#define BATTERY_LOW_LEVEL 35
+#define BATTERY_SHUTDOWN_LEVEL 20
+#define BATTERY_LOW_DEEPSLEEP_SECS 300
+
 #define WATCHDOG_TIMEOUT_SEC 90
 #define MEMORY_DEBUG_INTERVAL_SECS 20
-#define BATTERY_LEVEL_INTERVAL_SECS 180
-#define BATTERY_WARNING_LEVEL 30
 
 extern Gesture swipeRight;
-extern bool showDialog;
+extern bool blockScreen;
+extern bool lowBattery;
 
 time_t tsDiff(time_t tsMillis);
 String getSystemID();
@@ -42,6 +47,7 @@ void array2string(const byte *arr, int len, char *buf);
 void displayPowerStatus(bool fullScreen);
 bool usbPowered();
 void confirmRestart(Event &e);
+void lowBatteryCheck();
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
 void printFreeHeap();
 UBaseType_t printFreeStackWatermark(const char *taskName);

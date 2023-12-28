@@ -77,7 +77,7 @@ void updateStatusBar() {
     static bool showMessage = false;
     StatusMsg_t statusMsg;
 
-    if (tsDiff(lastUpdate) >= 1000 && !showDialog) {
+    if (tsDiff(lastUpdate) >= 1000 && !blockScreen) {
         lastUpdate = millis();
         if (showMessageUntil > millis()) {
             return;

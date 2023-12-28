@@ -36,6 +36,10 @@ void setup() {
     Serial.printf("Firmware %s v%s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
     Serial.printf("Compiled on %s, %s\n", __DATE__, __TIME__);
 
+    // display warning message and enter deep sleep
+    // if battery level <= BATTERY_SHUTDOWN_LEVEL
+    lowBatteryCheck();
+
     // queue for status bar at bottom of LCD
     statusMsgQueue = xQueueCreate(STATUS_MESSAGE_QUEUE_SIZE, sizeof(StatusMsg_t));
 
@@ -76,6 +80,10 @@ void loop() {
         if (mlx90614.changed() || sfa30.changed() || bme680.changed() ||
             tsDiff(lastMqttPublish) > (MQTT_PUBLISH_INTERVAL_SECS * 1000)) {
 
+            // display full screen warning message every BATTERY_LEVEL_INTERVAL_SECS
+            // when battery level is below BATTERY_WARNING_LEVEL
+            lowBatteryCheck();
+
             mlx90614.display();  // sets initial LCD screen layout
             mlx90614.console();
 
@@ -87,6 +95,7 @@ void loop() {
 
             updateStatusBar();
 
+            // send off current sensor data (MQTT, BLE, LoRaWAN)
             if (mqtt_publish(readings))
                 lastMqttPublish = millis();
             ble_notify(readings);

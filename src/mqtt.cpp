@@ -83,7 +83,7 @@ void mqtt_init() {
 }
 
 
-// try to publish sensor reedings
+// publish sensor readings
 bool mqtt_publish(sensorReadings_t data) {
     StaticJsonDocument<384> JSON;
     static char topic[64], buf[320], statusMsg[32];
@@ -117,11 +117,12 @@ bool mqtt_publish(sensorReadings_t data) {
     }
     JSON["rssi"] = WiFi.RSSI();
     JSON["wifiCons"] = wifiReconnectSuccess + wifiReconnectFail;
-    if (M5.Axp.GetBatVoltage() >= 1.0)
-      JSON["batLevel"] = int(M5.Axp.GetBatteryLevel());
-    JSON["usbPower"] = usbPowered() ? 1 : 0;
-
+    if (M5.Axp.GetBatVoltage() >= 1.0) {
+        JSON["batLevel"] = int(M5.Axp.GetBatteryLevel());
+        JSON["usbPower"] = usbPowered() ? 1 : 0;
+    }
     JSON["runtime"] = getRuntimeMinutes();
+
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
     JSON["heap"] = ESP.getFreeHeap();
     JSON["joinTask"] = stackWmJoinTask;

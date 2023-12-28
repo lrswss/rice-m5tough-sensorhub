@@ -259,7 +259,7 @@ bool BME680::read() {
 // resistance readings have changed significantly
 bool BME680::changed() {
     static float lastGasRes = 0.0, lastTemp = 0.0;
-    uint8_t lastHum;
+    static uint8_t lastHum;
     bool changed = false;
 
     if (!this->status())

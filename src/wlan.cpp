@@ -197,6 +197,8 @@ static void wifiConnectionTask(void* parameter) {
             loopCounter = 0;
         }
 #endif
+        if (lowBattery)
+            vTaskDelete(NULL);
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 }

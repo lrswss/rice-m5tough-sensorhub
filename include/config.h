@@ -45,7 +45,7 @@
 #define TEMP_THRESHOLD_CYAN 15.0
 
 // uncomment to enable LoRaWAN serial adapter ASR 6501
-#define LORAWAN_APPKEY "CEB39FE91A24CB1C0717E2859D245900" // 00
+#define LORAWAN_APPKEY "CEB39FE91A24CB1C0717E2859D245900"
 #define LORAWAN_APPEUI "0000000000000000"
 #define LORAWAN_INTERVAL_SECS 60
 #define LORAWAN_CONFIRM false
@@ -54,7 +54,7 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.5b5"
+#define FIRMWARE_VERSION "1.5b6"
 // uncomment to display Logo at startup
 // requires RGB565 dump as 'const unsigned short logo[]' in logo.h
 #define DISPLAY_LOGO
