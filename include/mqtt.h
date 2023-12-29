@@ -23,14 +23,35 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <WiFi.h>
 #include "bme680.h"
 #include "sfa30.h"
 #include "mlx90614.h"
 #include "config.h"
 
 #define MQTT_RETRY_SECS 10
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+extern UBaseType_t stackMqttPublishTask;
+#endif
 
-void mqtt_init();
-bool mqtt_publish(sensorReadings_t data);
+class MQTT {
+    public:
+        MQTT();
+        void begin();
+        bool queue(sensorReadings_t data);
+        bool schedule();
+        ~MQTT();
+    private:
+        bool connect(bool startup);
+        bool publish(sensorReadings_t data);
+        void publishTask();
+        static void publishTaskWrapper(void* parameter);
+        time_t lastPublished;
+        PubSubClient mqtt;
+        WiFiClient espClient;
+        QueueHandle_t msgQueue;
+        TaskHandle_t publishTaskHandle;
+};
 
+extern MQTT Publisher;
 #endif

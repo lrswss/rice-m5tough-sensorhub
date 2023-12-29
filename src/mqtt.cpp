@@ -26,12 +26,28 @@
 #include "lorawan.h"
 #include "display.h"
 
-// setup wifi and mqtt client
-WiFiClient espClient;
-PubSubClient mqtt(espClient);
+MQTT Publisher;
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+UBaseType_t stackMqttPublishTask;
+#endif
 
-// connect to mqtt broker with random client id
-static bool mqtt_connect(bool startup) {
+
+MQTT::MQTT() {
+    this->msgQueue = xQueueCreate(1, sizeof(sensorReadings_t));
+    this->mqtt.setClient(this->espClient);
+    this->lastPublished = 0;
+}
+
+
+MQTT::~MQTT() {
+    vQueueDelete(this->msgQueue);
+    vTaskDelete(this->publishTaskHandle);
+    this->mqtt.~PubSubClient();
+}
+
+
+// connect to MQTT broker with random client id
+bool MQTT::connect(bool startup) {
   static char clientid[16];
   
   if (!mqtt.connected()) {
@@ -66,7 +82,8 @@ static bool mqtt_connect(bool startup) {
 }
 
 
-void mqtt_init() {
+// setup MQTT client and try to connect to MQTT broker
+void MQTT::begin() {
     mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
     mqtt.setBufferSize(384);
     if (WiFi.isConnected()) {
@@ -75,27 +92,27 @@ void mqtt_init() {
         M5.Lcd.setFreeFont(&FreeSans12pt7b);
         M5.Lcd.setCursor(20,40);
         M5.Lcd.print("Connecting to MQTT...");
-        if (mqtt_connect(true)) {
+        if (this->connect(true)) {
             M5.Lcd.print("OK");
             delay(1500);
         }
+
+        // start checking the MQTT message queue to publish sensor readings
+        xTaskCreatePinnedToCore(this->publishTaskWrapper,
+            "mqttTask", 3072, this, 10, &this->publishTaskHandle, 0);
     }
 }
 
 
-// publish sensor readings
-bool mqtt_publish(sensorReadings_t data) {
+// returns true if sensor readings have been published
+bool MQTT::publish(sensorReadings_t data) {
     StaticJsonDocument<384> JSON;
-    static char topic[64], buf[320], statusMsg[32];
-    static time_t mqttRetry = 0;
+    static char topic[64], buf[336], statusMsg[32];
 
     if (!WiFi.isConnected()) {
         Serial.println("MQTT: publish skipped, no WiFi uplink");
         return false;
     }
-
-    if (millis() <= mqttRetry)
-        return false;
 
     JSON.clear();
     JSON["systemId"] = getSystemID();
@@ -129,25 +146,73 @@ bool mqtt_publish(sensorReadings_t data) {
     JSON["queueTask"] = stackWmQueueTask;
     JSON["wifiTask"] = stackWmWifiTask;
     JSON["ntpTask"] = stackWmNtpTask;
+    JSON["mqttTask"] = stackMqttPublishTask;
 #endif
     JSON["version"] = FIRMWARE_VERSION;
 
     memset(buf, 0, sizeof(buf));
     size_t s = serializeJson(JSON, buf);
-    if (mqtt_connect(false)) {
+    if (this->connect(false)) {
         snprintf(topic, sizeof(topic)-1, "%s", MQTT_TOPIC);
         if (mqtt.publish(topic, buf, s)) {
             Serial.printf("MQTT: published %d bytes to %s on %s\n", s,
                 prefs.mqttTopic, prefs.mqttBroker);
             queueStatusMsg("MQTT publish", 80, false);
-            mqttRetry = 0;
             return true;
         }
     }
-    Serial.printf("MQTT: failed to publish to %s on %s (error %d), retry in %d secs\n",
-        prefs.mqttTopic, prefs.mqttBroker, mqtt.state(), MQTT_RETRY_SECS);
-    snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt.state());
-    queueStatusMsg(statusMsg, 40, true);
-    mqttRetry = millis() + (MQTT_RETRY_SECS * 1000); // schedule next try
+
     return false;
+}
+
+
+// returns true if waiting time to queue a new message has been reached
+bool MQTT::schedule() {
+    return (tsDiff(lastPublished) > (prefs.mqttIntervalSecs * 1000));
+}
+
+
+// background task to publish queued messages
+void MQTT::publishTask() {
+    time_t mqttRetryTime = 0;
+    static char statusMsg[32];
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+    uint16_t loopCounter = 0;
+#endif
+
+    while (true) {
+        if ((mqttRetryTime <= millis()) && (xQueueReceive(this->msgQueue, &readings, 0) == pdTRUE)) {
+            if (!this->publish(readings)) {
+                Serial.printf("MQTT: failed to publish to %s on %s (error %d), retry in %d secs\n",
+                    prefs.mqttTopic, prefs.mqttBroker, mqtt.state(), MQTT_RETRY_SECS);
+                snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt.state());
+                queueStatusMsg(statusMsg, 40, true);
+                mqttRetryTime = millis() + (MQTT_RETRY_SECS * 1000);
+            } else {
+                this->lastPublished = millis();
+                mqttRetryTime = 0;
+            }
+        }
+#ifdef MEMORY_DEBUG_INTERVAL_SECS
+        if (loopCounter++ >= MEMORY_DEBUG_INTERVAL_SECS) {
+            stackMqttPublishTask = printFreeStackWatermark("mqttTask");
+            loopCounter = 0;
+        }
+#endif
+        if (lowBattery)
+            vTaskDelete(NULL);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+}
+
+
+void MQTT::publishTaskWrapper(void* _this) {
+    static_cast<MQTT*>(_this)->publishTask();
+}
+
+
+// place current sensor reading in MQTT publish queue
+bool MQTT::queue(sensorReadings_t data) {
+    Serial.println("MQTT: queuing sensor data");
+    return (xQueueOverwrite(this->msgQueue, (void*)&data) == pdTRUE);
 }

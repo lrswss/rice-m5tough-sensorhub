@@ -54,7 +54,7 @@ void setup() {
     swipeRight.addHandler(confirmRestart, E_GESTURE);
     wifi_init();
     ntp_init();
-    mqtt_init();
+    Publisher.begin();
 
     ble_init();
     displayPowerStatus(true);
@@ -69,7 +69,7 @@ void loop() {
     bme680.read(); // calculates readings every 3 seconds and calibrates sensors
 
     // read sensor data every READING_INTERVAL_SEC
-    if (tsDiff(lastReading) > (SENSOR_READING_INTERVAL_SEC * 1000)) {
+    if (tsDiff(lastReading) > (prefs.readingsIntervalSecs * 1000)) {
         lastReading = millis();
         mlx90614.read();
         sfa30.read();
@@ -77,8 +77,7 @@ void loop() {
 
         // display and publish sensor readings on significant changes
         // or if mqtt publishing interval has passed
-        if (mlx90614.changed() || sfa30.changed() || bme680.changed() ||
-            tsDiff(lastMqttPublish) > (MQTT_PUBLISH_INTERVAL_SECS * 1000)) {
+        if (mlx90614.changed() || sfa30.changed() || bme680.changed() || Publisher.schedule()) {
 
             // display full screen warning message every BATTERY_LEVEL_INTERVAL_SECS
             // when battery level is below BATTERY_WARNING_LEVEL
@@ -96,9 +95,8 @@ void loop() {
             updateStatusBar();
 
             // send off current sensor data (MQTT, BLE, LoRaWAN)
-            if (mqtt_publish(readings))
-                lastMqttPublish = millis();
             ble_notify(readings);
+            Publisher.queue(readings);
             LoRaWAN.queue(readings);
         }
     }
