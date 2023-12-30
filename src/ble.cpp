@@ -26,39 +26,27 @@
 #include "prefs.h"
 #include "display.h"
 
-// Setup characteristics and descriptors for sensor readings
-// use standard UUIDs for known characteristics
-// https://www.bluetooth.com/specifications/assigned-numbers/
-NimBLECharacteristic tempCharacteristic(BLEUUID((uint16_t)0x2A6E), BLE_PROPERTY_NOTIFY_READ);
-NimBLEDescriptor tempDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-NimBLECharacteristic humCharacteristic(BLEUUID((uint16_t)0x2A6F), BLE_PROPERTY_NOTIFY_READ);
-NimBLEDescriptor humDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
+GATTServer GATT;
 
-NimBLECharacteristic hchoCharacteristic(BLE_UUID_HCHO, BLE_PROPERTY_NOTIFY_READ);
-NimBLEDescriptor hchoDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
+GATTServer::GATTServer() {
+    snprintf(this->bleServerName, sizeof(this->bleServerName),
+        "%s-%s", WIFI_PORTAL_SSID, getSystemID().c_str());
+}
 
-NimBLECharacteristic eco2Characteristic(BLEUUID((uint16_t)0x2BE7), BLE_PROPERTY_NOTIFY_READ);
-NimBLEDescriptor eco2Descriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
 
-NimBLECharacteristic vocCharacteristic(BLEUUID((uint16_t)0x2B8C), BLE_PROPERTY_NOTIFY_READ);
-NimBLEDescriptor vocDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
+GATTServer::~GATTServer() {
+    this->pServer->stopAdvertising();
+    this->pServer->removeService(this->environmentalService);
+    this->environmentalService->~NimBLEService();
+    this->pServer->removeService(this->devInfoService);
+    this->devInfoService->~NimBLEService();
+    NimBLEDevice::deinit();
+}
 
-NimBLECharacteristic iaqCharacteristic(BLE_UUID_IAQ, BLE_PROPERTY_NOTIFY_READ);
-NimBLEDescriptor iaqDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 36);
-
-NimBLECharacteristic elaspedTimeCharacteristic(BLE_ELAPSEDTIME_UUID, NIMBLE_PROPERTY::READ);
-NimBLEDescriptor elaspedTimeDescriptor(BLEUUID((uint16_t)0x2901), NIMBLE_PROPERTY::READ, 32);
-
-NimBLECharacteristic modelCharacteristic(BLE_MODELNUMBER_UUID, NIMBLE_PROPERTY::READ);
-NimBLECharacteristic manufacturerCharacteristic(BLE_MANUFACTURER_UUID, NIMBLE_PROPERTY::READ);
-NimBLECharacteristic firmwareCharacteristic(BLE_FIRMWAREREVISION_UUID, NIMBLE_PROPERTY::READ);
-NimBLECharacteristic batteryCharacteristic(BLE_BATLEVEL_UUID, NIMBLE_PROPERTY::READ);
-
-static bool BLEdeviceConnected = false;
 
 // callbacks onConnect and onDisconnect
-class deviceCallbacks: public NimBLEServerCallbacks {
+class GATTServer::deviceCallbacks : public NimBLEServerCallbacks {
 
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc *desc) {
         char statusMsg[32];
@@ -66,29 +54,23 @@ class deviceCallbacks: public NimBLEServerCallbacks {
         Serial.printf("BLE: device %s connected\n", NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         sprintf(statusMsg, "BLE %s", NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         queueStatusMsg(statusMsg, 25, false);
-        BLEdeviceConnected = true;
     }
 
     void onDisconnect(NimBLEServer* pServer) {
         Serial.println("BLE: device disconnected");
         queueStatusMsg("BLE disconnected", 50, false);
         pServer->getAdvertising()->start(); // restart after disconnecting from client
-        BLEdeviceConnected = false;
     }
 };
 
 
-void ble_init() {
-    char bleServerName[32];
+void GATTServer::begin() {
+    NimBLEDescriptor *desc;
 
     if (!prefs.bleServer) {
         Serial.println("BLE: disabled");
         return;
     }
-
-    snprintf(bleServerName, sizeof(bleServerName), "%s-%s", WIFI_PORTAL_SSID, getSystemID().c_str());
-    NimBLEDevice::init(bleServerName);
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // +9dbm
 
     M5.Lcd.clearDisplay(BLUE);
     M5.Lcd.setTextColor(WHITE);
@@ -96,113 +78,119 @@ void ble_init() {
     M5.Lcd.setCursor(20, 40);
     M5.Lcd.print("Starting BLE Server...");
 
-    // BLE server and service setup
-    NimBLEServer *pServer = NimBLEDevice::createServer();
-    pServer->setCallbacks(new deviceCallbacks());
-    NimBLEService *devInfoService = pServer->createService(BLE_DEVINFO_SERVICE_UUID);
-    NimBLEService *environmentalService = pServer->createService(BLE_ENVIRONMENTAL_SERVICE_UUID);
+    NimBLEDevice::init(this->bleServerName);
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // +9dbm
 
-    devInfoService->addCharacteristic(&modelCharacteristic);
-    modelCharacteristic.setValue(FIRMWARE_NAME);
-    devInfoService->addCharacteristic(&manufacturerCharacteristic);
-    manufacturerCharacteristic.setValue(MANUFACTURER);
-    devInfoService->addCharacteristic(&firmwareCharacteristic);
-    firmwareCharacteristic.setValue(FIRMWARE_VERSION);
-    devInfoService->addCharacteristic(&elaspedTimeCharacteristic);
-    elaspedTimeCharacteristic.addDescriptor(&elaspedTimeDescriptor);
-    elaspedTimeDescriptor.setValue("Total runtime (minutes)");
+    // BLE server and service setup
+    this->pServer = NimBLEDevice::createServer();
+    this->pServer->setCallbacks(new GATTServer::deviceCallbacks());
+
+    // Setup characteristics and descriptors for device info and sensor readings
+    // use standard UUIDs for known characteristics
+    // https://www.bluetooth.com/specifications/assigned-numbers/
+    this->devInfoService = this->pServer->createService(BLE_DEVINFO_SERVICE_UUID);
+    this->modelCharacteristic = this->devInfoService->createCharacteristic(BLE_MODELNUMBER_UUID, BLE_PROP_READ);
+    this->modelCharacteristic->setValue(FIRMWARE_NAME);
+    this->manufacturerCharacteristic = this->devInfoService->createCharacteristic(BLE_MANUFACTURER_UUID, BLE_PROP_READ);
+    this->manufacturerCharacteristic->setValue(MANUFACTURER);
+    this->firmwareCharacteristic = this->devInfoService->createCharacteristic(BLE_FIRMWAREREVISION_UUID, BLE_PROP_READ);
+    this->firmwareCharacteristic->setValue(FIRMWARE_VERSION);
+    this->elaspedTimeCharacteristic = this->devInfoService->createCharacteristic(BLE_ELAPSEDTIME_UUID, BLE_PROP_READ);
+    desc = this->elaspedTimeCharacteristic->createDescriptor(BLE_USER_DESC_UUID, BLE_PROP_READ, 32);
+    desc->setValue("Total runtime (minutes)");
     if (M5.Axp.GetBatVoltage() >= 1.0) {
-        devInfoService->addCharacteristic(&batteryCharacteristic);
-        batteryCharacteristic.setValue(int(M5.Axp.GetBatteryLevel()));
+        this->batteryCharacteristic = this->devInfoService->createCharacteristic(BLE_BATLEVEL_UUID, BLE_PROP_READ);
+        this->batteryCharacteristic->setValue(int(M5.Axp.GetBatteryLevel()));
     }
 
+    // environmental service
+    this->environmentalService = this->pServer->createService(BLE_ENVIRONMENTAL_SERVICE_UUID);
     if (mlx90614.status() || bme680.status()) {
-        environmentalService->addCharacteristic(&tempCharacteristic);
-        tempCharacteristic.addDescriptor(&tempDescriptor);
+        this->tempCharacteristic = this->environmentalService->createCharacteristic(BLE_TEMPERATURE_UUID, BLE_PROP_NOTIFY_READ);
+        desc = this->tempCharacteristic->createDescriptor(BLE_USER_DESC_UUID, BLE_PROP_READ, 32);
         if (mlx90614.status())
-            tempDescriptor.setValue("MLX90614 IR thermometer (C)");
+            desc->setValue("MLX90614 IR thermometer (C)");
         else
-            tempDescriptor.setValue("BME680 temperature sensor (C)");
+            desc->setValue("BME680 temperature sensor (C)");
     }
     if (bme680.status() || sfa30.status()) {
-        environmentalService->addCharacteristic(&humCharacteristic);
-        humCharacteristic.addDescriptor(&humDescriptor);
+        this->humCharacteristic = this->environmentalService->createCharacteristic(BLE_HUMIDITY_UUID, BLE_PROP_NOTIFY_READ);
+        desc = this->humCharacteristic->createDescriptor(BLE_USER_DESC_UUID, BLE_PROP_READ, 32);
         if (bme680.status())
-            humDescriptor.setValue("BME680 humidity sensor (%)");
+            desc->setValue("BME680 humidity sensor (%)");
         else
-            humDescriptor.setValue("SFA30 humidity sensor (%)");
+            desc->setValue("SFA30 humidity sensor (%)");
     }
     if (sfa30.status()) {
-        environmentalService->addCharacteristic(&hchoCharacteristic);
-        hchoCharacteristic.addDescriptor(&hchoDescriptor);
-        hchoDescriptor.setValue("SFA30 formaldehyde sensor (ppb)");
+        this->hchoCharacteristic = this->environmentalService->createCharacteristic(BLE_HCHO_UUID, BLE_PROP_NOTIFY_READ);
+        desc = this->hchoCharacteristic->createDescriptor(BLE_USER_DESC_UUID, BLE_PROP_READ, 32);
+        desc->setValue("SFA30 formaldehyde sensor (ppb)");
     }
     if (bme680.status()) {
-        environmentalService->addCharacteristic(&iaqCharacteristic);
-        iaqCharacteristic.addDescriptor(&iaqDescriptor);
-        iaqDescriptor.setValue("BME680 Air Quality Index (0-500)");
-        environmentalService->addCharacteristic(&eco2Characteristic);
-        eco2Characteristic.addDescriptor(&eco2Descriptor);
-        eco2Descriptor.setValue("BME680 eCO2 estimation (ppm)");
-        environmentalService->addCharacteristic(&vocCharacteristic);
-        vocCharacteristic.addDescriptor(&vocDescriptor);
-        vocDescriptor.setValue("BME680 VOC estimation (ppm)");
+        this->iaqCharacteristic = this->environmentalService->createCharacteristic(BLE_IAQ_UUID, BLE_PROP_NOTIFY_READ);
+        desc = this->iaqCharacteristic->createDescriptor(BLE_USER_DESC_UUID, BLE_PROP_READ, 36);
+        desc->setValue("BME680 Air Quality Index (0-500)");
+        this->eco2Characteristic = this->environmentalService->createCharacteristic(BLE_ECO2_UUID, BLE_PROP_NOTIFY_READ);
+        desc = this->eco2Characteristic->createDescriptor(BLE_USER_DESC_UUID, BLE_PROP_READ, 32);
+        desc->setValue("BME680 eCO2 estimation (ppm)");
+        this->vocCharacteristic = this->environmentalService->createCharacteristic(BLE_VOC_UUID, BLE_PROP_NOTIFY_READ);
+        desc = this->vocCharacteristic->createDescriptor(BLE_USER_DESC_UUID, BLE_PROP_READ, 32);
+        desc->setValue("BME680 VOC estimation (ppm)");
     }
 
     // Start the services
-    devInfoService->start();
-    environmentalService->start();
+    this->devInfoService->start();
+    this->environmentalService->start();
 
     // Start advertising
-    NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
-    pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06); // iPhone fix?
-    pServer->getAdvertising()->start();
+    this->pAdvertising = NimBLEDevice::getAdvertising();
+    this->pAdvertising->setScanResponse(true);
+    this->pAdvertising->setMinPreferred(0x06); // iPhone fix?
+    this->pServer->getAdvertising()->start();
     M5.Lcd.print("OK");
     Serial.println("BLE: GATT server ready, waiting for clients to connect");
     delay(1500);
 }
 
 
-void ble_notify(sensorReadings_t data) {
+void GATTServer::notify(sensorReadings_t data) {
     uint16_t hum;
     uint32_t runtime = SysTime.getRuntimeMinutes();
 
-    if (!prefs.bleServer || !BLEdeviceConnected)
+    if (!prefs.bleServer || !this->pServer->getConnectedCount())
         return;
 
-    elaspedTimeCharacteristic.setValue(runtime);
+    this->elaspedTimeCharacteristic->setValue(runtime);
     if (mlx90614.status()) {
-        tempCharacteristic.setValue(data.mlxObjectTemp);
-        tempCharacteristic.notify();
+        this->tempCharacteristic->setValue(data.mlxObjectTemp);
+        this->tempCharacteristic->notify();
     } else if (bme680.status()) {
-        tempCharacteristic.setValue(data.bme680Temp);
-        tempCharacteristic.notify(); 
+        this->tempCharacteristic->setValue(data.bme680Temp);
+        this->tempCharacteristic->notify();
     }
     delay(10);
-    if (bme680.status() || sfa30.status()) {
-        if (bme680.status())
-            hum = data.bme680Hum;
-        else
-            hum = data.sfa30Hum;
-        humCharacteristic.setValue(hum);
-        humCharacteristic.notify();
-        delay(10);
+    if (bme680.status()) {
+        this->humCharacteristic->setValue(data.bme680Hum);
+        this->humCharacteristic->notify();
+    } else if (sfa30.status()) {
+        this->humCharacteristic->setValue(data.sfa30Hum);
+        this->humCharacteristic->notify();
     }
+    delay(10);
     if (sfa30.status()) {
-        hchoCharacteristic.setValue(data.sfa30HCHO);
-        hchoCharacteristic.notify();
+        this->hchoCharacteristic->setValue(data.sfa30HCHO);
+        this->hchoCharacteristic->notify();
         delay(10);
     }
     if (bme680.status() == 2) {
-        eco2Characteristic.setValue(data.bme680eCO2);
-        eco2Characteristic.notify();
+        this->eco2Characteristic->setValue(data.bme680eCO2);
+        this->eco2Characteristic->notify();
         delay(10);
-        vocCharacteristic.setValue(data.bme680VOC);
-        vocCharacteristic.notify();
+        this->vocCharacteristic->setValue(data.bme680VOC);
+        this->vocCharacteristic->notify();
         delay(10);
-        iaqCharacteristic.setValue(data.bme680Iaq);
-        iaqCharacteristic.notify();
+        this->iaqCharacteristic->setValue(data.bme680Iaq);
+        this->iaqCharacteristic->notify();
     }
     Serial.println("BLE: sending sensor readings");
 }

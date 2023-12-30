@@ -26,10 +26,13 @@
 #include "sfa30.h"
 #include "mlx90614.h"
 
-// UUIDs for Services
+// UUIDs for GATT services
 // https://www.bluetooth.com/specifications/assigned-numbers/
 #define BLE_ENVIRONMENTAL_SERVICE_UUID (BLEUUID((uint16_t)0x181A))
-#define BLE_SENSOR_SERVICE_UUID "d7a09cfd-f428-40b3-a25c-5fc950ba380f"
+#define BLE_TEMPERATURE_UUID (BLEUUID((uint16_t)0x2A6E))
+#define BLE_HUMIDITY_UUID (BLEUUID((uint16_t)0x2A6F))
+#define BLE_ECO2_UUID (BLEUUID((uint16_t)0x2B8C))
+#define BLE_VOC_UUID (BLEUUID((uint16_t)0x2BE7))
 #define BLE_DEVINFO_SERVICE_UUID (BLEUUID((uint16_t)0x180A))
 #define BLE_MANUFACTURER_UUID (BLEUUID((uint16_t)0x2A29))
 #define BLE_FIRMWAREREVISION_UUID (BLEUUID((uint16_t)0x2A26))
@@ -38,14 +41,40 @@
 #define BLE_ELAPSEDTIME_UUID (BLEUUID((uint16_t)0x2BF2))
 #define BLE_BATLEVEL_UUID (BLEUUID((uint16_t)0x2A19))
 
+// custom UUIDs for characteristic missing in above assigned numbers specs
+#define BLE_IAQ_UUID "3118ab5a-c9e6-48d1-91c2-3ca1652a61c6"  // Air Quality Index
+#define BLE_HCHO_UUID "f202b62d-3794-4388-987c-509780b18326"  // Formaldehyde (ppb)
 
-// custom UUIDs for characteristic missing in abNUove assigned numbers specs
-#define BLE_UUID_IAQ "3118ab5a-c9e6-48d1-91c2-3ca1652a61c6"  // Air Quality Index
-#define BLE_UUID_HCHO "f202b62d-3794-4388-987c-509780b18326"  // Formaldehyde (ppb)
+#define BLE_USER_DESC_UUID (BLEUUID((uint16_t)0x2901))
+#define BLE_PROP_NOTIFY_READ (NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ)
+#define BLE_PROP_READ NIMBLE_PROPERTY::READ
 
-#define BLE_PROPERTY_NOTIFY_READ (NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ)
 
-void ble_init();
-void ble_notify(sensorReadings_t data);
+class GATTServer {
+    public:
+        GATTServer();
+        void begin();
+        void notify(sensorReadings_t data);
+        ~GATTServer();
+    private:
+        char bleServerName[32];
+        NimBLEServer *pServer;
+        NimBLEService *devInfoService;
+        NimBLEService *environmentalService;
+        NimBLEAdvertising *pAdvertising;
+        NimBLECharacteristic *tempCharacteristic;
+        NimBLECharacteristic *humCharacteristic;
+        NimBLECharacteristic *hchoCharacteristic;
+        NimBLECharacteristic *iaqCharacteristic;
+        NimBLECharacteristic *eco2Characteristic;
+        NimBLECharacteristic *vocCharacteristic;
+        NimBLECharacteristic *modelCharacteristic;
+        NimBLECharacteristic *manufacturerCharacteristic;
+        NimBLECharacteristic *firmwareCharacteristic;
+        NimBLECharacteristic *elaspedTimeCharacteristic;
+        NimBLECharacteristic *batteryCharacteristic;
+        class deviceCallbacks;
+};
 
+extern GATTServer GATT;
 #endif

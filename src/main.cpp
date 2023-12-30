@@ -57,7 +57,7 @@ void setup() {
     SysTime.begin();
     Publisher.begin();
 
-    ble_init();
+    GATT.begin();
     displayPowerStatus(true);
     LoRaWAN.begin(&Serial2, LORAWAN_RX_PIN, LORAWAN_TX_PIN);
 }
@@ -96,7 +96,7 @@ void loop() {
             updateStatusBar();
 
             // send off current sensor data (MQTT, BLE, LoRaWAN)
-            ble_notify(readings);
+            GATT.notify(readings);
             Publisher.queue(readings);
             LoRaWAN.queue(readings);
         }
