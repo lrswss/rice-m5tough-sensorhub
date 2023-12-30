@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels, Fraunhofer IOSB
   
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -54,10 +55,15 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.6b1"
+#define FIRMWARE_VERSION "1.6b2"
 // uncomment to display Logo at startup
 // requires RGB565 dump as 'const unsigned short logo[]' in logo.h
 #define DISPLAY_LOGO
+
+// set your timezone and NTP server
+// https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+#define LOCAL_TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"
+#define NTP_SERVER_ADDRESS "de.pool.ntp.org"
 
 // clear NVS (and WiFi credentials) if new firmware is detected
 #define CLEAR_NVS_ON_UPDATE

@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -165,7 +166,7 @@ void ble_init() {
 
 void ble_notify(sensorReadings_t data) {
     uint16_t hum;
-    uint32_t runtime = getRuntimeMinutes();
+    uint32_t runtime = SysTime.getRuntimeMinutes();
 
     if (!prefs.bleServer || !BLEdeviceConnected)
         return;

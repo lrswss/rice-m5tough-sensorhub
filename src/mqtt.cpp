@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -86,21 +87,20 @@ bool MQTT::connect(bool startup) {
 void MQTT::begin() {
     mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
     mqtt.setBufferSize(384);
-    if (WiFi.isConnected()) {
-        M5.Lcd.clearDisplay(BLUE);
-        M5.Lcd.setTextColor(WHITE);
-        M5.Lcd.setFreeFont(&FreeSans12pt7b);
-        M5.Lcd.setCursor(20,40);
-        M5.Lcd.print("Connecting to MQTT...");
-        if (this->connect(true)) {
-            M5.Lcd.print("OK");
-            delay(1500);
-        }
 
-        // start checking the MQTT message queue to publish sensor readings
-        xTaskCreatePinnedToCore(this->publishTaskWrapper,
-            "mqttTask", 3072, this, 10, &this->publishTaskHandle, 0);
+    M5.Lcd.clearDisplay(BLUE);
+    M5.Lcd.setTextColor(WHITE);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setCursor(20,40);
+    M5.Lcd.print("Connecting to MQTT...");
+    if (this->connect(true)) {
+        M5.Lcd.print("OK");
+        delay(1500);
     }
+
+    // start checking the MQTT message queue to publish sensor readings
+    xTaskCreatePinnedToCore(this->publishTaskWrapper,
+        "mqttTask", 3072, this, 10, &this->publishTaskHandle, 0);
 }
 
 
@@ -109,10 +109,8 @@ bool MQTT::publish(sensorReadings_t data) {
     StaticJsonDocument<384> JSON;
     static char topic[64], buf[336], statusMsg[32];
 
-    if (!WiFi.isConnected()) {
-        Serial.println("MQTT: publish skipped, no WiFi uplink");
+    if (!WiFi.isConnected())
         return false;
-    }
 
     JSON.clear();
     JSON["systemId"] = getSystemID();
@@ -138,7 +136,7 @@ bool MQTT::publish(sensorReadings_t data) {
         JSON["batLevel"] = int(M5.Axp.GetBatteryLevel());
         JSON["usbPower"] = usbPowered() ? 1 : 0;
     }
-    JSON["runtime"] = getRuntimeMinutes();
+    JSON["runtime"] = SysTime.getRuntimeMinutes();
 
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
     JSON["heap"] = ESP.getFreeHeap();

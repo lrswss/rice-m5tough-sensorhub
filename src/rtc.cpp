@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -25,20 +26,30 @@
 
 // setup the ntp udp client
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, prefs.ntpServer, 0, (NTP_UPDATE * 1000));
-static bool ntpReady = false;
+NTPClient timeClient(ntpUDP);
+
+SystemTime SysTime;
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
 UBaseType_t stackWmNtpTask;
 #endif
 
-// TimeZone Settings Details https://github.com/JChristensen/Timezone
-TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};
-TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};
-Timezone CE(CEST, CET);  // Frankfurt, Paris
+
+SystemTime::SystemTime() {
+    timeClient.setPoolServerName(prefs.ntpServer);
+    timeClient.setUpdateInterval(NTP_UPDATE_SECS * 1000);
+    setenv("TZ", LOCAL_TIMEZONE, 1);
+    tzset();
+}
+
+
+SystemTime::~SystemTime() {
+    timeClient.end();
+    vTaskDelete(this->ntpTaskHandle);
+}
 
 
 // set ESP32‘s internal clock to UTC
-static void setSystemTime(time_t epoch) {
+void SystemTime::set(time_t epoch) {
     struct timeval tv;
 
     tv.tv_sec = epoch;
@@ -47,19 +58,21 @@ static void setSystemTime(time_t epoch) {
 }
 
 
-// set RTC to from newtwork time (UTC)
-static void setRTCFromNTP() {
+// set M5Tough's RTC from network time (UTC)
+void SystemTime::setRTCFromNTP() {
     RTC_TimeTypeDef rtcTime;
     RTC_DateTypeDef rtcDate;
+    tm *tminfo;
 
-    time_t t = timeClient.getEpochTime();
-    rtcTime.Seconds = second(t);
-    rtcTime.Minutes = minute(t);
-    rtcTime.Hours = hour(t);
-    rtcDate.Date = day(t);
-    rtcDate.Month = month(t);
-    rtcDate.Year = year(t);
-    rtcDate.WeekDay = weekday(t);
+    time_t epoch = timeClient.getEpochTime();
+    tminfo = gmtime(&epoch);
+    rtcTime.Seconds = tminfo->tm_sec;
+    rtcTime.Minutes = tminfo->tm_min;
+    rtcTime.Hours = tminfo->tm_hour;
+    rtcDate.Date = tminfo->tm_mday;
+    rtcDate.Month = tminfo->tm_mon + 1;
+    rtcDate.Year = tminfo->tm_year + 1900;
+    rtcDate.WeekDay = tminfo->tm_wday;
 
     M5.Rtc.SetTime(&rtcTime);
     M5.Rtc.SetDate(&rtcDate);
@@ -67,8 +80,9 @@ static void setRTCFromNTP() {
         rtcDate.Month, rtcDate.Date, rtcTime.Hours, rtcTime.Minutes, rtcTime.Seconds);
 }
 
+
 // set system time from RTC to UTC
-static void setTimeFromRTC() {
+void SystemTime::setFromRTC() {
     RTC_TimeTypeDef rtcTime;
     RTC_DateTypeDef rtcDate;
     static char str[56];
@@ -84,42 +98,45 @@ static void setTimeFromRTC() {
     tm.tm_min = rtcTime.Minutes;
     tm.tm_sec = rtcTime.Seconds;
 
+    // ugly work around for missing timegm()
+    // https://github.com/esp8266/Arduino/issues/7806
+    setenv("TZ", "GMT0", 1);
+    tzset();
     epoch = mktime(&tm);
-    setSystemTime(epoch);
-    strftime(str, sizeof(str), "RTC: set system time to %Y/%m/%d %H:%M:%S (UTC)", localtime(&epoch));
+    setenv("TZ", LOCAL_TIMEZONE, 1);
+    tzset();
+
+    this->set(epoch);
+    strftime(str, sizeof(str), "RTC: set system time to %Y/%m/%d %H:%M:%S (UTC)", gmtime(&epoch));
     Serial.println(str);
 }
 
 
-static void ntpUpdateTask(void* parameter) {
-    time_t lastTimeSync = 0;
-    bool initialTimeSync = true;
+void SystemTime::ntpTask() {
+    time_t lastRTCupdate = millis();
+    time_t lastSysTimeUpdate = millis();
+    bool ntpInit = false;
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
     uint16_t loopCounter = 0;
 #endif
 
     while(true) {
         if (WiFi.isConnected()) {
-            if (!ntpReady) {
-                timeClient.setPoolServerName(prefs.ntpServer);
+            if (!ntpInit) {
                 timeClient.begin();
-                timeClient.forceUpdate();
-                ntpReady = true;
+                ntpInit = true;
             }
-            timeClient.update();
             // set RTC and system time to network time once every hour
-            if (timeClient.isTimeSet() && (tsDiff(lastTimeSync) > (3600 * 1000) || initialTimeSync)) {
-                lastTimeSync = millis();
-                initialTimeSync = false;
-                setSystemTime(timeClient.getEpochTime());
-                if (millis() > (300 * 1000))
-                    setRTCFromNTP();
+            if (timeClient.update() && (tsDiff(lastRTCupdate) >= (3600 * 1000))) {  // timeout 1000ms
+                lastRTCupdate = millis();
+                this->set(timeClient.getEpochTime());
+                this->setRTCFromNTP();
             }
-        }
-        // sync system time from RTC every half hour
-        if (timeClient.isTimeSet() && tsDiff(lastTimeSync) > (1800 * 1000)) {
-            lastTimeSync = millis();
-            setTimeFromRTC();
+
+        // if NTP sync fails, set system time from RTC once every hour
+        } else if (!timeClient.isTimeSet() && (tsDiff(lastSysTimeUpdate) >= (3600 * 1000))) {
+            lastSysTimeUpdate = millis();
+            this->setFromRTC();
         }
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
         if (loopCounter++ >= MEMORY_DEBUG_INTERVAL_SECS/5) {
@@ -132,12 +149,20 @@ static void ntpUpdateTask(void* parameter) {
 }
 
 
-char* getTimeString() {
-    static char strTime[9]; // HH:MM:SS
-    time_t t = CE.toLocal(time(nullptr));
+void SystemTime::ntpTaskWrapper(void* _this) {
+    static_cast<SystemTime*>(_this)->ntpTask();
+}
 
-    if (t > 1701388800) { // 01/01/2023
-        sprintf(strTime, "%.2d:%.2d:%.2d", hour(t), minute(t), second(t));
+
+char* SystemTime::getTimeString() {
+    static char strTime[9]; // HH:MM:SS
+    time_t now;
+    tm *tminfo;
+
+    time(&now);
+    tminfo = localtime(&now);
+    if ((tminfo->tm_year+1900) >= 2023) {
+        sprintf(strTime, "%.2d:%.2d:%.2d", tminfo->tm_hour, tminfo->tm_min, tminfo->tm_sec);
     } else {
         strncpy(strTime, "--:--:--", 8);
     }
@@ -146,12 +171,16 @@ char* getTimeString() {
 
 
 // returns ptr to array with current date
-char* getDateString() {
+char* SystemTime::getDateString() {
     static char strDate[11]; // DD.MM.YYYY
-    time_t t = CE.toLocal(time(nullptr));
+    time_t now;
+    tm *tminfo;
 
-    if (t > 1701388800) {
-        sprintf(strDate, "%.2d.%.2d.%4d", day(t), month(t), year(t));
+    time(&now);
+    tminfo = localtime(&now);
+    if ((tminfo->tm_year+1900) >= 2023) {
+        sprintf(strDate, "%.2d.%.2d.%4d", tminfo->tm_mday,
+            (tminfo->tm_mon + 1), (tminfo->tm_year + 1900));
     } else {
         strncpy(strDate, "--.--.----", 10);
     }
@@ -160,7 +189,7 @@ char* getDateString() {
 
 
 // returns runtime in minutes
-uint32_t getRuntimeMinutes() {
+uint32_t SystemTime::getRuntimeMinutes() {
     static time_t lastMillis = 0;
     static float seconds = 0.0;
 
@@ -170,7 +199,12 @@ uint32_t getRuntimeMinutes() {
 }
 
 
-void ntp_init() {
+bool SystemTime::isTimeSet() {
+    return (time(nullptr) > 1701388800);  // 12/01/2023
+}
+
+
+void SystemTime::begin() {
     uint8_t timeout = 0;
 
     M5.Lcd.clearDisplay(BLUE);
@@ -179,7 +213,7 @@ void ntp_init() {
     M5.Lcd.setCursor(20, 40);
     M5.Lcd.print("Get network time...");
     Serial.printf("NTP: sync time with server %s...", prefs.ntpServer);
-    xTaskCreatePinnedToCore(ntpUpdateTask, "ntpTask", 2560, NULL, 3, NULL, 0);
+    xTaskCreatePinnedToCore(this->ntpTaskWrapper, "ntpTask", 2560, this, 3, &this->ntpTaskHandle, 0);
 
    if (!WiFi.isConnected()) {
         M5.Lcd.print("no WiFi");
@@ -187,24 +221,24 @@ void ntp_init() {
         delay(1000);
         M5.Lcd.setCursor(20, 70);
         M5.Lcd.print("Set time from RTC...");
-        setTimeFromRTC();
+        this->setFromRTC();
         M5.Lcd.print("OK");
         delay(1500);
         return;
     }
 
-    // wait for ntpUpdateTask()
+    // wait for ntpTask()
     while (timeout++ < 20 && !timeClient.isTimeSet())
         delay(250);
 
     if (timeClient.isTimeSet()) {
-        setSystemTime(timeClient.getEpochTime());
+        this->set(timeClient.getEpochTime());
         M5.Lcd.print("OK");
         Serial.println("OK");
         delay(1000);
         M5.Lcd.setCursor(20, 70);
         M5.Lcd.print("Set RTC from NTP...");
-        setRTCFromNTP();
+        this->setRTCFromNTP();
         M5.Lcd.print("OK");
     } else {
         M5.Lcd.print("ERR");
@@ -212,7 +246,7 @@ void ntp_init() {
         delay(1000);
         M5.Lcd.setCursor(20, 70);
         M5.Lcd.print("Set time from RTC...");
-        setTimeFromRTC();
+        this->setFromRTC();
         M5.Lcd.print("OK");
     }
     delay(1500);

@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels, Fraunhofer IOSB
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -53,7 +54,7 @@ void setup() {
     Sensors::init();
     swipeRight.addHandler(confirmRestart, E_GESTURE);
     wifi_init();
-    ntp_init();
+    SysTime.begin();
     Publisher.begin();
 
     ble_init();

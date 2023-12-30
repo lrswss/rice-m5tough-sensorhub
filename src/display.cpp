@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels
   
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -87,12 +88,12 @@ void updateStatusBar() {
                 statusMsg.colorText, statusMsg.colorBackground);
             showMessage = false; // display date/time next
         } else {
-            displayStatusMsg(getDateString(), 15, false, WHITE, BLUE);
-            if (time(nullptr) > 1701388800)
+            displayStatusMsg(SysTime.getDateString(), 15, false, WHITE, BLUE);
+            if (SysTime.isTimeSet())
                 M5.Lcd.setCursor(215, 230);
             else
                 M5.Lcd.setCursor(245, 230);
-            M5.Lcd.print(getTimeString());
+            M5.Lcd.print(SysTime.getTimeString());
             showMessage = (uxQueueMessagesWaiting(statusMsgQueue) > 0) ? true : false;
         }
     }

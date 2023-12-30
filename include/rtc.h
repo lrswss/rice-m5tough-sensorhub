@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -23,21 +24,30 @@
 #include <Arduino.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
-#include <TimeLib.h>
-#include <Timezone.h>
-#include <rom/rtc.h>
 #include <sys/time.h>
 
-#define NTP_ADDRESS "de.pool.ntp.org"
-#define NTP_UPDATE  1800  // interval in seconds between updates
-#define NTP_RETRY_SECS 60
+#define NTP_UPDATE_SECS  1800  // interval in seconds between updates
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
 extern UBaseType_t stackWmNtpTask;
 #endif
 
-void ntp_init();
-uint32_t getRuntimeMinutes();
-char* getTimeString();
-char* getDateString();
+class SystemTime {
+    public:
+        SystemTime();
+        void begin();
+        uint32_t getRuntimeMinutes();
+        char* getTimeString();
+        char* getDateString();
+        bool isTimeSet();
+        ~SystemTime();
+    private:
+        void set(time_t epoch);
+        void setRTCFromNTP();
+        void setFromRTC();
+        void ntpTask();
+        static void ntpTaskWrapper(void* parameter);
+        TaskHandle_t ntpTaskHandle;
+};
 
+extern SystemTime SysTime;
 #endif

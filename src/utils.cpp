@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -221,7 +222,7 @@ void printFreeHeap() {
 
     if (tsDiff(lastMsgMillis) > (MEMORY_DEBUG_INTERVAL_SECS * 1000)) {
         Serial.printf("DEBUG[%s]: runtime %d min, FreeHeap %d bytes\n",
-            getTimeString(), getRuntimeMinutes(), ESP.getFreeHeap());
+            SysTime.getTimeString(), SysTime.getRuntimeMinutes(), ESP.getFreeHeap());
         lastMsgMillis = millis();
     }
 }
@@ -229,7 +230,7 @@ void printFreeHeap() {
 UBaseType_t printFreeStackWatermark(const char *taskName) {
     UBaseType_t wm = uxTaskGetStackHighWaterMark(NULL);
     Serial.printf("DEBUG[%s]: %s, runtime %d min, Core %d, StackHighWaterMark %d bytes\n",
-        getTimeString(), taskName, getRuntimeMinutes(), xPortGetCoreID(), wm);
+        SysTime.getTimeString(), taskName, SysTime.getRuntimeMinutes(), xPortGetCoreID(), wm);
     return wm;
 }
 #endif

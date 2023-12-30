@@ -2,6 +2,7 @@
   Copyright (c) 2023 Lars Wessels
   
   This file a part of the "RICE-M5Tough-SensorHub" source code.
+  https://github.com/lrswss/rice-m5tough-sensorhub
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -370,7 +371,7 @@ const char* ASR6501::encodeLPP(sensorReadings_t data) {
         lpp.addConcentration(5, data.bme680eCO2); // ppm
         lpp.addConcentration(6, data.bme680VOC*10); // ppm*10
     }
-    lpp.addGenericSensor(7, getRuntimeMinutes());
+    lpp.addGenericSensor(7, SysTime.getRuntimeMinutes());
     if (M5.Axp.GetBatVoltage() >= 1.0) {
         lpp.addPercentage(8, int(M5.Axp.GetBatteryLevel()));
         lpp.addDigitalInput(9, usbPowered());
