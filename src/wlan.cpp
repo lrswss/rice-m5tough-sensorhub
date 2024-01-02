@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -24,20 +24,29 @@
 #include "prefs.h"
 #include "display.h"
 
-static bool updateSettings = false;
-static bool endButtonWaitLoop = false, startPortal = false;
-static char ssid[32], psk[32];
-static bool portalTimedOut = false;
+namespace {
+    bool updateSettings = false;
+    bool endButtonWaitLoop = false;
+    bool startPortal = false;
+    bool portalTimedOut = false;
+}
 
-uint16_t wifiReconnectFail = 0, wifiReconnectSuccess = 0;
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
 UBaseType_t stackWmWifiTask;
 #endif
 
+WLAN WifiUplink;
+
+
+WLAN::~WLAN() {
+    vTaskDelete(this->connectionTaskHandle);
+    WiFi.disconnect();
+}
+
 
 // show message on display on failed WiFi connection attempt
-static void connectionFailed(const char* apname) {
-    if (!strlen(apname) || portalTimedOut)
+void WLAN::connectionFailed(const char* apname) {
+    if (!strlen(apname) || portalTimedOut) // don't interfer with portal timeout error messsage
         return;
     M5.Lcd.clearDisplay(RED);
     M5.Lcd.setTextColor(WHITE);
@@ -49,8 +58,9 @@ static void connectionFailed(const char* apname) {
 }
 
 
-// show message on display with details on established WiFi connection
-static void connectionSuccess(bool success) {
+// show full screen message on display when connecting to WiFi (success = false)
+// and print further details on established WiFi connection (success = true)
+void WLAN::connectionSuccess(bool success) {
     if (!success) {
         M5.Lcd.clearDisplay(BLUE);
         M5.Lcd.setTextColor(WHITE);
@@ -79,7 +89,7 @@ static void connectionSuccess(bool success) {
 
 // create a random numeric password
 // new password is generated after restart/powerup
-static char* randomPassword() {
+char* WLAN::randomPassword() {
     static char pass[8] = { 0 };
 
     if (!strlen(pass))
@@ -90,9 +100,9 @@ static char* randomPassword() {
 
 // callback function
 // show message on display with details on how to connect to config portal
-static void startConfigPortal(WiFiManager *wm) {
+void WLAN::startPortalCallback(WiFiManager *wm) {
     if (!endButtonWaitLoop && wm->getWiFiSSID().length() > 0) {
-        connectionFailed(wm->getWiFiSSID().c_str());
+        WLAN::connectionFailed(wm->getWiFiSSID().c_str());
         delay(3000);
     }
     M5.Lcd.clearDisplay(BLUE);
@@ -103,16 +113,16 @@ static void startConfigPortal(WiFiManager *wm) {
     M5.Lcd.setCursor(20, 100);
     M5.Lcd.printf("WLAN: %s", wm->getConfigPortalSSID().c_str());
     M5.Lcd.setCursor(20, 130);
-    M5.Lcd.printf("Password: %s", randomPassword());
+    M5.Lcd.printf("Password: %s", WLAN::randomPassword());
     M5.Lcd.setCursor(20, 160);
     M5.Lcd.printf("IP: %s", WiFi.softAPIP().toString().c_str());
     Serial.printf("WiFiManager: start setup portal on SSID %s...\n", wm->getConfigPortalSSID().c_str());
 }
 
 
-// callback function
+// static callback function
 // show message on display if config portal timeout was reached
-static void portalTimeout() {
+void WLAN::portalTimeoutCallback() {
     M5.Lcd.clearDisplay(RED);
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
@@ -125,16 +135,18 @@ static void portalTimeout() {
 }
 
 
-// callback function
-static void saveParams() {
+// static callback function
+// called when additional parameters were save in configuration portal
+void WLAN::saveParamsCallback() {
     updateSettings = true;
     Serial.println("WiFiManager: save parameters");
     startWatchdog();
 }
 
 
-// callback function
-static void saveWifi() {
+// static callback function
+// called when WiFi settings were save in configuration portal
+void WLAN::saveWifiCallback() {
     updateSettings = true;
     Serial.println("WiFiManager: save wifi settings");
     startWatchdog();
@@ -142,7 +154,7 @@ static void saveWifi() {
 
 
 // background task to periodically reconnect to WiFi if disconnected
-static void wifiConnectionTask(void* parameter) {
+void WLAN::connectionTask() {
     static char statusMsg[32];
     uint8_t wifiTimeout = 0, loopStatusMsg = 0;
     time_t wifiReconnect = 0;
@@ -172,13 +184,13 @@ static void wifiConnectionTask(void* parameter) {
                     ssid, WIFI_RETRY_SECS);
                 queueStatusMsg("WiFi failed", 100, true);
                 WiFi.setAutoReconnect(false);
-                wifiReconnectFail++;
+                this->wifiReconnectFail++;
             } else {
                 Serial.printf("WiFi: connected to SSID %s with IP %s (RSSI %d dbm)\n",
                     ssid, WiFi.localIP().toString().c_str(), WiFi.RSSI());
                 snprintf(statusMsg, sizeof(statusMsg), "WiFi ready (%d dbm)", WiFi.RSSI());
                 queueStatusMsg(statusMsg, 45, false);
-                wifiReconnectSuccess++;
+                this->wifiReconnectSuccess++;
             }
             loopStatusMsg = 0; // avoid overlapping status messages
         }
@@ -187,7 +199,8 @@ static void wifiConnectionTask(void* parameter) {
             loopStatusMsg = 0;
             if (!WiFi.isConnected()) {
                 Serial.printf("WiFi: not connected, %d connection attempts (%d successful, %d failed)\n",
-                    (wifiReconnectSuccess + wifiReconnectFail), wifiReconnectSuccess, wifiReconnectFail);
+                    (this->wifiReconnectSuccess + this->wifiReconnectFail),
+                    this->wifiReconnectSuccess, this->wifiReconnectFail);
                 queueStatusMsg("WiFi unavailable", 65, true);
             }
         }
@@ -205,12 +218,17 @@ static void wifiConnectionTask(void* parameter) {
 }
 
 
+void WLAN::connectionTaskWrapper(void* _this) {
+    static_cast<WLAN*>(_this)->connectionTask();
+}
+
+
 // starts config portal if no WiFi credentials are available
 // if 'forcePortal' is true start config portal anyway
-static void wifi_manager(bool forcePortal) {
+void WLAN::wifiManager(bool forcePortal) {
     WiFiManager wm;
     const char* menu[] = { "wifi", "param", "sep", "update", "restart" };
-    String apname = "SensorHub-" + getSystemID();
+    String apname = String(WIFI_PORTAL_SSID) + "-" + getSystemID();
     char mqttPortStr[8], sensorIntervalStr[4], mqttIntervalStr[4], lorawanIntervalStr[4];
 
     memset(ssid, 0, sizeof(ssid));
@@ -219,12 +237,12 @@ static void wifi_manager(bool forcePortal) {
     wm.setScanDispPerc(true);
     wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SECS);
     wm.setConfigPortalTimeout(WIFI_SETUP_TIMEOUT_SECS);
-    wm.setAPCallback(startConfigPortal);
-    wm.setSaveParamsCallback(saveParams);
-    wm.setConfigPortalTimeoutCallback(portalTimeout);
+    wm.setAPCallback(this->startPortalCallback);
+    wm.setSaveParamsCallback(this->saveParamsCallback);
+    wm.setConfigPortalTimeoutCallback(this->portalTimeoutCallback);
     wm.setWebServerCallback(stopWatchdog);
-    wm.setSaveConfigCallback(saveWifi);
-    wm.setTitle("SensorHub");
+    wm.setSaveConfigCallback(this->saveWifiCallback);
+    wm.setTitle(WIFI_PORTAL_SSID);
     wm.setMenu(menu, 5);
 
     sprintf(sensorIntervalStr, "%d", prefs.readingsIntervalSecs);
@@ -279,17 +297,17 @@ static void wifi_manager(bool forcePortal) {
     }
 
     if (!forcePortal) {
-        connectionSuccess(false);
+        this->connectionSuccess(false);
         // autoconnect to preconfigure WiFi network
         // if unavailable or WiFi credentials are invalid start configuration portal
-        if (!wm.autoConnect(apname.c_str(), randomPassword())) {
-            connectionFailed(wm.getWiFiSSID().c_str());
+        if (!wm.autoConnect(apname.c_str(), this->randomPassword())) {
+            this->connectionFailed(wm.getWiFiSSID().c_str());
             delay(3000);
         }
     } else {
         wm.setConfigPortalTimeout(0);
         wm.setConfigPortalBlocking(false);
-        wm.startConfigPortal(apname.c_str(), randomPassword());
+        wm.startConfigPortal(apname.c_str(), this->randomPassword());
         while (!updateSettings) { // wait until (new) settings are saved
             wm.process();
             esp_task_wdt_reset();
@@ -299,7 +317,7 @@ static void wifi_manager(bool forcePortal) {
     }
 
     if (WiFi.isConnected()) {
-        connectionSuccess(true);
+        this->connectionSuccess(true);
         delay(1500);
     }
 
@@ -324,12 +342,13 @@ static void wifi_manager(bool forcePortal) {
     }
 
     // background task to check/reastablish WiFi uplink
-    xTaskCreatePinnedToCore(wifiConnectionTask, "wifiTask", 2560, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(this->connectionTaskWrapper, "wifiTask",
+        2560, this, 3, &this->connectionTaskHandle, 1);
 }
 
 
 // button event handler
-static void eventStartPortal(Event& e) {
+void WLAN::eventStartPortal(Event& e) {
     endButtonWaitLoop = true;
     startPortal = !strcmp(e.objName(), "Yes") ? true : false;
 }
@@ -337,7 +356,7 @@ static void eventStartPortal(Event& e) {
 
 // renders yes/no dialog on display to start configuration portal
 // if dialog times out WifiManager tries to connect to WiFi
-void wifi_init() {
+void WLAN::begin() {
     uint16_t timeout = 0;
     wifi_config_t conf;
 
@@ -346,7 +365,7 @@ void wifi_init() {
     WiFi.mode(WIFI_AP_STA);
     esp_wifi_get_config(WIFI_IF_STA, &conf);
     if (!strlen(reinterpret_cast<const char*>(conf.sta.ssid))) {
-        wifi_manager(false);
+        this->wifiManager(false);
         return;
     }
 
@@ -364,11 +383,11 @@ void wifi_init() {
     M5.Lcd.print("(re)configure device?");
 
     M5.Buttons.draw();
-    bYes.addHandler(eventStartPortal, E_RELEASE);
-    bNo.addHandler(eventStartPortal, E_RELEASE);
+    bYes.addHandler(this->eventStartPortal, E_RELEASE);
+    bNo.addHandler(this->eventStartPortal, E_RELEASE);
     while (timeout++ < (DISPLAY_DIALOG_TIMEOUT_SECS * 1000) && !endButtonWaitLoop) {
         M5.update();
         delay(1);
     }
-    wifi_manager(startPortal);
+    this->wifiManager(startPortal);
 }

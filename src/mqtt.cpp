@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -131,7 +131,7 @@ bool MQTT::publish(sensorReadings_t data) {
         }
     }
     JSON["rssi"] = WiFi.RSSI();
-    JSON["wifiCons"] = wifiReconnectSuccess + wifiReconnectFail;
+    JSON["wifiCons"] = WifiUplink.wifiReconnectSuccess + WifiUplink.wifiReconnectFail;
     if (M5.Axp.GetBatVoltage() >= 1.0) {
         JSON["batLevel"] = int(M5.Axp.GetBatteryLevel());
         JSON["usbPower"] = usbPowered() ? 1 : 0;

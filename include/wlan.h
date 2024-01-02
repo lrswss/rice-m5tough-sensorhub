@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -33,12 +33,33 @@
 #define WIFI_CONNECT_TIMEOUT_SECS 10
 #define WIFI_SETUP_TIMEOUT_SECS 180
 
-extern uint16_t wifiReconnectFail;
-extern uint16_t wifiReconnectSuccess;
 #ifdef MEMORY_DEBUG_INTERVAL_SECS
 extern UBaseType_t stackWmWifiTask;
 #endif
 
-void wifi_init();
 
+class WLAN {
+    public:
+        void begin();
+        uint16_t wifiReconnectSuccess;
+        uint16_t wifiReconnectFail;
+        ~WLAN();
+    private:
+        void wifiManager(bool forcePortal);
+        void connectionTask();
+        static void connectionTaskWrapper(void* parameter);
+        static void connectionFailed(const char* apname);
+        static void connectionSuccess(bool success);
+        static char* randomPassword();
+        static void startPortalCallback(WiFiManager *wm);
+        static void portalTimeoutCallback();
+        static void saveParamsCallback();
+        static void saveWifiCallback();
+        static void eventStartPortal(Event& e);
+        char ssid[32];
+        char psk[32];
+        TaskHandle_t connectionTaskHandle;
+};
+
+extern WLAN WifiUplink;
 #endif

@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels, Fraunhofer IOSB
+  Copyright (c) 2023-2024 Lars Wessels, Fraunhofer IOSB
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -53,7 +53,7 @@ void setup() {
 
     Sensors::init();
     swipeRight.addHandler(confirmRestart, E_GESTURE);
-    wifi_init();
+    WifiUplink.begin();
     SysTime.begin();
     Publisher.begin();
 
