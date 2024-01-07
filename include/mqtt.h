@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -38,7 +38,7 @@ extern UBaseType_t stackMqttPublishTask;
 class MQTT {
     public:
         MQTT();
-        void begin();
+        bool begin();
         bool queue(sensorReadings_t data);
         bool schedule();
         ~MQTT();

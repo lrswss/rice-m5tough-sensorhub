@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -35,6 +35,7 @@ UBaseType_t stackWmNtpTask;
 
 
 SystemTime::SystemTime() {
+    this->ntpTaskHandle = NULL;
     timeClient.setPoolServerName(prefs.ntpServer);
     timeClient.setUpdateInterval(NTP_UPDATE_SECS * 1000);
     setenv("TZ", LOCAL_TIMEZONE, 1);
@@ -44,7 +45,8 @@ SystemTime::SystemTime() {
 
 SystemTime::~SystemTime() {
     timeClient.end();
-    vTaskDelete(this->ntpTaskHandle);
+    if (this->ntpTaskHandle != NULL)
+        vTaskDelete(this->ntpTaskHandle);
 }
 
 
@@ -213,7 +215,9 @@ void SystemTime::begin() {
     M5.Lcd.setCursor(20, 40);
     M5.Lcd.print("Get network time...");
     Serial.printf("NTP: sync time with server %s...", prefs.ntpServer);
-    xTaskCreatePinnedToCore(this->ntpTaskWrapper, "ntpTask", 2560, this, 3, &this->ntpTaskHandle, 0);
+    if (xTaskCreatePinnedToCore(this->ntpTaskWrapper, "ntpTask", 2560,
+            this, 3, &this->ntpTaskHandle, 0) != pdTRUE)
+        Serial.print("ntpTask failed...");
 
    if (!WiFi.isConnected()) {
         M5.Lcd.print("no WiFi");

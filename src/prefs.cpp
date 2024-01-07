@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -32,7 +32,7 @@ Preferences nvs;
 // instantiate app settings and set default values
 appPrefs_t prefs = {
     { 0 },
-    SENSOR_READING_INTERVAL_SEC,
+    SENSOR_READING_INTERVAL_SECS,
     MQTT_BROKER_HOST,
     MQTT_BROKER_PORT,
     MQTT_TOPIC,
@@ -54,11 +54,13 @@ appPrefs_t prefs = {
 #endif
 #if defined(LORAWAN_APPEUI) and defined(LORAWAN_APPKEY)
     true,
-#else
-    false,
-#endif
     LORAWAN_APPEUI,
     LORAWAN_APPKEY,
+#else
+    false,
+    "",
+    "",
+#endif
     LORAWAN_INTERVAL_SECS,
     LORAWAN_CONFIRM,
 #ifdef CLEAR_NVS_ON_UPDATE

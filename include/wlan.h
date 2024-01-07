@@ -56,8 +56,8 @@ class WLAN {
         static void saveParamsCallback();
         static void saveWifiCallback();
         static void eventStartPortal(Event& e);
-        char ssid[32];
-        char psk[32];
+        char ssid[33];
+        char psk[33];
         TaskHandle_t connectionTaskHandle;
 };
 

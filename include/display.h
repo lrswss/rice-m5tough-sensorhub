@@ -45,7 +45,7 @@ extern QueueHandle_t statusMsgQueue;
 void displayLogo();
 void displaySplashScreen();
 void displayStatusMsg(const char* msg, uint16_t pos, bool bold, uint16_t cText, uint16_t cBack);
-void queueStatusMsg(const char* text, uint16_t pos, bool warning);
+bool queueStatusMsg(const char* text, uint16_t pos, bool warning);
 void updateStatusBar();
 void printDegree(uint16_t color);
 

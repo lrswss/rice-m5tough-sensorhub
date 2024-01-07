@@ -33,16 +33,15 @@
 void setup() {
     M5.begin(true, false, true, true, kMBusModeOutput);
     delay(1000);
-    Serial.println("(c) 2023 Lars Wessels, Fraunhofer IOSB");
-    Serial.printf("Firmware %s v%s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
-    Serial.printf("Compiled on %s, %s\n", __DATE__, __TIME__);
+
+    Serial.println("\n(c) 2023-2024 Lars Wessels, Fraunhofer IOSB");
+    Serial.printf("RICE-M5Tough-SensorHub Firmware %s v%s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
+    Serial.println("https://github.com/lrswss/rice-m5tough-sensorhub");
+    Serial.printf("Compiled on %s, %s\n\n", __DATE__, __TIME__);
 
     // display warning message and enter deep sleep
     // if battery level <= BATTERY_SHUTDOWN_LEVEL
     lowBatteryCheck();
-
-    // queue for status bar at bottom of LCD
-    statusMsgQueue = xQueueCreate(STATUS_MESSAGE_QUEUE_SIZE, sizeof(StatusMsg_t));
 
     startWatchdog();
 #ifdef DISPLAY_LOGO
@@ -53,13 +52,20 @@ void setup() {
 
     Sensors::init();
     swipeRight.addHandler(confirmRestart, E_GESTURE);
+    displayPowerStatus(true);
+
     WifiUplink.begin();
     SysTime.begin();
-    Publisher.begin();
+    if (!Publisher.begin())
+        Publisher.~MQTT();
+    if (!GATT.begin())
+        GATT.~GATTServer();
 
-    GATT.begin();
-    displayPowerStatus(true);
-    LoRaWAN.begin(&Serial2, LORAWAN_RX_PIN, LORAWAN_TX_PIN);
+    if (!LoRaWAN.begin(&Serial2, LORAWAN_RX_PIN, LORAWAN_TX_PIN))
+        LoRaWAN.~ASR6501();
+
+    // initialize queue for status messages at bottom of the display
+    statusMsgQueue = xQueueCreate(STATUS_MESSAGE_QUEUE_SIZE, sizeof(StatusMsg_t));
 }
 
 

@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -30,18 +30,21 @@
 GATTServer GATT;
 
 GATTServer::GATTServer() {
+    this->pServer = NULL;
     snprintf(this->bleServerName, sizeof(this->bleServerName),
         "%s-%s", WIFI_PORTAL_SSID, getSystemID().c_str());
 }
 
 
 GATTServer::~GATTServer() {
-    this->pServer->stopAdvertising();
-    this->pServer->removeService(this->environmentalService);
-    this->environmentalService->~NimBLEService();
-    this->pServer->removeService(this->devInfoService);
-    this->devInfoService->~NimBLEService();
-    NimBLEDevice::deinit();
+    if (this->pServer != NULL) {
+        this->pServer->stopAdvertising();
+        this->pServer->removeService(this->environmentalService);
+        this->environmentalService->~NimBLEService();
+        this->pServer->removeService(this->devInfoService);
+        this->devInfoService->~NimBLEService();
+        NimBLEDevice::deinit();
+    }
 }
 
 
@@ -64,17 +67,21 @@ class GATTServer::deviceCallbacks : public NimBLEServerCallbacks {
 };
 
 
-void GATTServer::begin() {
+bool GATTServer::begin() {
     NimBLEDescriptor *desc;
-
-    if (!prefs.bleServer) {
-        Serial.println("BLE: disabled");
-        return;
-    }
 
     M5.Lcd.clearDisplay(BLUE);
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
+
+    if (!prefs.bleServer) {
+        Serial.println("BLE: disabled");
+        M5.Lcd.setCursor(20, 40);
+        M5.Lcd.print("BLE Server disabled.");
+        delay(1500);
+        return false;
+    }
+
     M5.Lcd.setCursor(20, 40);
     M5.Lcd.print("Starting BLE Server...");
 
@@ -83,7 +90,7 @@ void GATTServer::begin() {
 
     // BLE server and service setup
     this->pServer = NimBLEDevice::createServer();
-    this->pServer->setCallbacks(new GATTServer::deviceCallbacks());
+    this->pServer->setCallbacks(new GATTServer::deviceCallbacks(), true);
 
     // Setup characteristics and descriptors for device info and sensor readings
     // use standard UUIDs for known characteristics
@@ -150,6 +157,7 @@ void GATTServer::begin() {
     M5.Lcd.print("OK");
     Serial.println("BLE: GATT server ready, waiting for clients to connect");
     delay(1500);
+    return true;
 }
 
 

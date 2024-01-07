@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
   
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -23,7 +23,7 @@
 #include "rtc.h"
 #include "utils.h"
 
-QueueHandle_t statusMsgQueue;
+QueueHandle_t statusMsgQueue = NULL;
 
 
 // print fake ° symbol on display (font size 36pt)
@@ -53,7 +53,7 @@ void displaySplashScreen() {
     M5.Lcd.setCursor(12,125);
     M5.Lcd.print("MLX90614/SFA30/BME680");
     M5.Lcd.setFreeFont(&FreeSans9pt7b);
-    M5.Lcd.setCursor(100,160);
+    M5.Lcd.setCursor(105,160);
     M5.Lcd.printf("Firmware %s", FIRMWARE_VERSION);
 }
 
@@ -102,8 +102,11 @@ void updateStatusBar() {
 
 // queue status messages for display with updateStatusBar()
 // warning messages are placed in the front of the queue and displayed for 2 secs
-void queueStatusMsg(const char* text, uint16_t pos, bool warning) {
+bool queueStatusMsg(const char* text, uint16_t pos, bool warning) {
     StatusMsg_t msg;
+
+    if (statusMsgQueue == NULL)
+        return false;
 
     strlcpy(msg.text, text, sizeof(msg.text));
     msg.positionText = pos;
@@ -113,11 +116,13 @@ void queueStatusMsg(const char* text, uint16_t pos, bool warning) {
     msg.colorText = warning ? WHITE : BLUE;
     msg.colorBackground = warning ? RED : WHITE;
 
-    if (uxQueueMessagesWaiting(statusMsgQueue) == STATUS_MESSAGE_QUEUE_SIZE)
+    if (uxQueueMessagesWaiting(statusMsgQueue) == STATUS_MESSAGE_QUEUE_SIZE) {
         Serial.println("ERROR: statusMsgQueue overflow");
+        return false;
+    }
 
     if (warning) 
-        xQueueSendToFront(statusMsgQueue, (void*)&msg, 250/portTICK_PERIOD_MS);
+        return (xQueueSendToFront(statusMsgQueue, (void*)&msg, 250/portTICK_PERIOD_MS) == pdTRUE);
     else 
-        xQueueSendToBack(statusMsgQueue, (void*)&msg, 250/portTICK_PERIOD_MS);
+        return (xQueueSendToBack(statusMsgQueue, (void*)&msg, 250/portTICK_PERIOD_MS) == pdTRUE);
 }

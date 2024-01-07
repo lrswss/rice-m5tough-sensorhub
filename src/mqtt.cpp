@@ -36,14 +36,19 @@ UBaseType_t stackMqttPublishTask;
 MQTT::MQTT() {
     this->msgQueue = xQueueCreate(1, sizeof(sensorReadings_t));
     this->mqtt.setClient(this->espClient);
+    this->publishTaskHandle = NULL;
     this->lastPublished = 0;
 }
 
 
 MQTT::~MQTT() {
     vQueueDelete(this->msgQueue);
-    vTaskDelete(this->publishTaskHandle);
-    this->mqtt.~PubSubClient();
+    this->msgQueue = NULL;
+    if (this->publishTaskHandle != NULL)
+        vTaskDelete(this->publishTaskHandle);
+    if (this->mqtt.connected())
+        this->mqtt.disconnect();
+    this->espClient.~WiFiClient();
 }
 
 
@@ -69,11 +74,13 @@ bool MQTT::connect(bool startup) {
       if (startup) {
         M5.Lcd.clearDisplay(RED);
         M5.Lcd.setTextColor(WHITE);
-        M5.Lcd.setCursor(20,70);
-        M5.Lcd.print("Failed to connect to MQTT");
+        M5.Lcd.setCursor(55,85);
+        M5.Lcd.print("Failed to connect to");
+        M5.Lcd.setCursor(25,125);
+        M5.Lcd.print("configured MQTT broker!");
         M5.Lcd.setTextDatum(MC_DATUM);
-        M5.Lcd.drawString(prefs.mqttBroker, 160, 120, 4);
-        delay(5000);
+        M5.Lcd.drawString(prefs.mqttBroker, 160, 160, 4);
+        delay(3000);
       }
       return false;
     }
@@ -84,7 +91,7 @@ bool MQTT::connect(bool startup) {
 
 
 // setup MQTT client and try to connect to MQTT broker
-void MQTT::begin() {
+bool MQTT::begin() {
     mqtt.setServer(prefs.mqttBroker, prefs.mqttBrokerPort);
     mqtt.setBufferSize(384);
 
@@ -99,8 +106,23 @@ void MQTT::begin() {
     }
 
     // start checking the MQTT message queue to publish sensor readings
-    xTaskCreatePinnedToCore(this->publishTaskWrapper,
-        "mqttTask", 3072, this, 10, &this->publishTaskHandle, 0);
+    if (xTaskCreatePinnedToCore(this->publishTaskWrapper, "mqttTask", 3072,
+                this, 10, &this->publishTaskHandle, 0) != pdTRUE) {
+        Serial.println("MQTT: failed to start background task, service disabled");
+        M5.Lcd.clearDisplay(RED);
+        M5.Lcd.setTextColor(WHITE);
+        M5.Lcd.setCursor(50,80);
+        M5.Lcd.print("Failed to start MQTT");
+        M5.Lcd.setCursor(70,110);
+        M5.Lcd.print("background task!");
+        M5.Lcd.setFreeFont(&FreeSansBold12pt7b);
+        M5.Lcd.setCursor(70,170);
+        M5.Lcd.print("MQTT disabled");
+        delay(3000);
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -184,7 +206,7 @@ void MQTT::publishTask() {
                 Serial.printf("MQTT: failed to publish to %s on %s (error %d), retry in %d secs\n",
                     prefs.mqttTopic, prefs.mqttBroker, mqtt.state(), MQTT_RETRY_SECS);
                 snprintf(statusMsg, sizeof(statusMsg), "MQTT failed (error %d)", mqtt.state());
-                queueStatusMsg(statusMsg, 40, true);
+                queueStatusMsg(statusMsg, 30, true);
                 mqttRetryTime = millis() + (MQTT_RETRY_SECS * 1000);
             } else {
                 this->lastPublished = millis();
@@ -211,6 +233,8 @@ void MQTT::publishTaskWrapper(void* _this) {
 
 // place current sensor reading in MQTT publish queue
 bool MQTT::queue(sensorReadings_t data) {
+    if (this->msgQueue == NULL)
+        return false;
     Serial.println("MQTT: queuing sensor data");
     return (xQueueOverwrite(this->msgQueue, (void*)&data) == pdTRUE);
 }

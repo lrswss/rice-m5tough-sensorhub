@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels, Fraunhofer IOSB
+  Copyright (c) 2023-2024 Lars Wessels, Fraunhofer IOSB
   
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -31,7 +31,7 @@
 // uncomment to enable BLE GATT server
 #define BLE_SERVER
 
-#define SENSOR_READING_INTERVAL_SEC 5
+#define SENSOR_READING_INTERVAL_SECS 5
 #define DISPLAY_DIALOG_TIMEOUT_SECS 5
 
 #define HCHO_PUBLISH_TRESHOLD 1.0
@@ -55,7 +55,8 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.6b4"
+#define FIRMWARE_VERSION "1.7rc1"
+
 // uncomment to display Logo at startup
 // requires RGB565 dump as 'const unsigned short logo[]' in logo.h
 #define DISPLAY_LOGO

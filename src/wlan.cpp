@@ -126,12 +126,12 @@ void WLAN::portalTimeoutCallback() {
     M5.Lcd.clearDisplay(RED);
     M5.Lcd.setTextColor(WHITE);
     M5.Lcd.setFreeFont(&FreeSans12pt7b);
-    M5.Lcd.setCursor(50, 75);
-    M5.Lcd.print("Setup portal timeout");
+    M5.Lcd.setCursor(50, 120);
+    M5.Lcd.print("Setup portal timeout!");
     Serial.println("WiFiManager: setup portal timeout");
     portalTimedOut = true;
-    startWatchdog();
     delay(3000);
+    startWatchdog();
 }
 
 
@@ -230,6 +230,7 @@ void WLAN::wifiManager(bool forcePortal) {
     const char* menu[] = { "wifi", "param", "sep", "update", "restart" };
     String apname = String(WIFI_PORTAL_SSID) + "-" + getSystemID();
     char mqttPortStr[8], sensorIntervalStr[4], mqttIntervalStr[4], lorawanIntervalStr[4];
+    uint8_t connectTimeout = 0;
 
     memset(ssid, 0, sizeof(ssid));
     wm.setDebugOutput(false, "WiFi: ");
@@ -249,7 +250,7 @@ void WLAN::wifiManager(bool forcePortal) {
     sprintf(mqttIntervalStr, "%d", prefs.mqttIntervalSecs);
     sprintf(lorawanIntervalStr, "%d", prefs.lorawanIntervalSecs);
 
-    WiFiManagerParameter sensor_interval("sensor_interval", "Sensor reading interval (3-60 secs)", sensorIntervalStr, 2);
+    WiFiManagerParameter sensor_interval("sensor_interval", "Sensor Reading Interval (3-60 secs)", sensorIntervalStr, 2);
     WiFiManagerParameter mqtt_interval("mqtt_interval", "MQTT Publish Interval (10-120 secs)", mqttIntervalStr, 3);
     WiFiManagerParameter mqtt_broker("broker", "MQTT Broker", prefs.mqttBroker, PARAMETER_SIZE);
     sprintf(mqttPortStr, "%d", prefs.mqttBrokerPort);
@@ -290,14 +291,11 @@ void WLAN::wifiManager(bool forcePortal) {
     wm.addParameter(&lorawan_appeui);
     wm.addParameter(&lorawan_appkey);
 
-    if (!forcePortal && wm.getWiFiSSID().length()) {
-        Serial.printf("WiFiManager: autoconnect to SSID %s\n", wm.getWiFiSSID().c_str());
-        strlcpy(ssid, wm.getWiFiSSID().c_str(), 32); // used by wifiReconnectTask()
-        strlcpy(psk, wm.getWiFiPass().c_str(), 32);
-    }
-
     if (!forcePortal) {
+        if (wm.getWiFiSSID().length())
+            Serial.printf("WiFiManager: autoconnect to SSID %s\n", wm.getWiFiSSID().c_str());
         this->connectionSuccess(false);
+
         // autoconnect to preconfigure WiFi network
         // if unavailable or WiFi credentials are invalid start configuration portal
         if (!wm.autoConnect(apname.c_str(), this->randomPassword())) {
@@ -305,45 +303,55 @@ void WLAN::wifiManager(bool forcePortal) {
             delay(3000);
         }
     } else {
-        wm.setConfigPortalTimeout(0);
         wm.setConfigPortalBlocking(false);
         wm.startConfigPortal(apname.c_str(), this->randomPassword());
-        while (!updateSettings) { // wait until (new) settings are saved
+        while (!updateSettings && !portalTimedOut) { // wait until (new) settings are saved
             wm.process();
             esp_task_wdt_reset();
         }
+
         if (wm.getConfigPortalActive())
             wm.stopConfigPortal();
-    }
 
-    if (WiFi.isConnected()) {
-        this->connectionSuccess(true);
-        delay(1500);
+        if (wm.getWiFiSSID().length()) {
+            strlcpy(ssid, wm.getWiFiSSID().c_str(), 33); // used by wifiReconnectTask()
+            strlcpy(psk, wm.getWiFiPass().c_str(), 33);
+        }
     }
 
     if (updateSettings) {
         prefs.readingsIntervalSecs = strtoumax(sensor_interval.getValue(), NULL, 10);
         prefs.mqttIntervalSecs = strtoumax(mqtt_interval.getValue(), NULL, 10);
-        strlcpy(prefs.mqttBroker, mqtt_broker.getValue(), PARAMETER_SIZE);
+        strlcpy(prefs.mqttBroker, mqtt_broker.getValue(), PARAMETER_SIZE+1);
         prefs.mqttBrokerPort = strtoumax(mqtt_port.getValue(), NULL, 10);
-        strlcpy(prefs.mqttTopic, mqtt_topic.getValue(), PARAMETER_SIZE);
+        strlcpy(prefs.mqttTopic, mqtt_topic.getValue(), PARAMETER_SIZE+1);
         prefs.mqttEnableAuth = *mqtt_auth.getValue();
-        strlcpy(prefs.mqttUsername, mqtt_user.getValue(), PARAMETER_SIZE);
-        strlcpy(prefs.mqttPassword, mqtt_pass.getValue(), PARAMETER_SIZE);
-        strlcpy(prefs.ntpServer, ntp_server.getValue(), PARAMETER_SIZE);
+        strlcpy(prefs.mqttUsername, mqtt_user.getValue(), PARAMETER_SIZE+1);
+        strlcpy(prefs.mqttPassword, mqtt_pass.getValue(), PARAMETER_SIZE+1);
+        strlcpy(prefs.ntpServer, ntp_server.getValue(), PARAMETER_SIZE+1);
         prefs.bleServer = *ble_server.getValue();
         prefs.lorawanEnable = *lorawan_node.getValue();
         prefs.lorawanIntervalSecs = strtoumax(lorawan_interval.getValue(), NULL, 10);
         prefs.lorawanConfirm = *lorawan_confirm.getValue();
-        strlcpy(prefs.lorawanAppEUI, lorawan_appeui.getValue(), 16);
-        strlcpy(prefs.lorawanAppKey, lorawan_appkey.getValue(), 32);
-
+        strlcpy(prefs.lorawanAppEUI, lorawan_appeui.getValue(), 17);
+        strlcpy(prefs.lorawanAppKey, lorawan_appkey.getValue(), 33);
         savePrefs(false);
     }
 
     // background task to check/reastablish WiFi uplink
     xTaskCreatePinnedToCore(this->connectionTaskWrapper, "wifiTask",
         2560, this, 3, &this->connectionTaskHandle, 1);
+
+    if (forcePortal) {
+        this->connectionSuccess(false);
+        while (!WiFi.isConnected() && (connectTimeout++ <= WIFI_CONNECT_TIMEOUT_SECS))
+            delay(1000); // background task handles WiFi connection
+    }
+
+    if (WiFi.isConnected()) {
+        this->connectionSuccess(true);
+        delay(1500);
+    }
 }
 
 

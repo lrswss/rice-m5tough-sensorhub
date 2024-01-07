@@ -26,7 +26,7 @@
 #include <bsec.h>
 #include "sensors.h"
 
-#define BME680_STATE_SAVE_PERIOD  UINT32_C(120 * 60 * 1000)  // every 2 hours
+#define BME680_STATE_SAVE_PERIOD  (120 * 60 * 1000)  // every 2 hours
 
 class BME680 : public Sensors {
     public:

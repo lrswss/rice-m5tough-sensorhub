@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
   
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -42,29 +42,41 @@ ASR6501::ASR6501(HardwareSerial* serialPort, uint8_t rxPin, uint8_t txPin) {
     this->begin(serialPort, rxPin, txPin);
     this->deviceState = NONE;
     this->msgQueue = xQueueCreate(1, sizeof(sensorReadings_t));
+    this->joinTaskHandle = NULL;
+    this->queueTaskHandle = NULL;
+    this->serial = NULL;
 }
 
 
 ASR6501::~ASR6501() {
+    this->deviceState = NONE;
     vQueueDelete(this->msgQueue);
-    vTaskDelete(this->joinTaskHandle);
-    vTaskDelete(this->queueTaskHandle);
-    this->serial->end();
+    vSemaphoreDelete(this->SerialLock);
+    if (this->joinTaskHandle != NULL)
+        vTaskDelete(this->joinTaskHandle);
+    if (this->queueTaskHandle != NULL)
+        vTaskDelete(this->queueTaskHandle);
+    if (this->serial != NULL)
+        this->serial->end();
     lpp.~CayenneLPP();
 }
 
 
 bool ASR6501::setupFailed(const char* msg) {
     M5.Lcd.print("ERR");
+    this->deviceState = ERROR;
+    Serial.println(msg);
+    Serial.println("LoRaWAN: serial adapter failed, service disabled");
     delay(1500);
     M5.Lcd.clearDisplay(RED);
     M5.Lcd.setTextColor(WHITE);
-    M5.Lcd.setCursor(50,70);
+    M5.Lcd.setCursor(50,80);
     M5.Lcd.print("Failed to setup serial");
-    M5.Lcd.setCursor(60,100);
-    M5.Lcd.print("LoRaWAN adapter");
-    Serial.println(msg);
-    this->deviceState = ERROR;
+    M5.Lcd.setCursor(55,110);
+    M5.Lcd.print("LoRaWAN adapter!");
+    M5.Lcd.setFreeFont(&FreeSansBold12pt7b);
+    M5.Lcd.setCursor(45,170);
+    M5.Lcd.print("LoRaWAN disabled");
     delay(3000);
     return false;
 }
@@ -166,6 +178,11 @@ const char* ASR6501::getDevEUI() {
 bool ASR6501::setOTAA(const char* appEUI, const char* appKey) {
     char cmd[48];
 
+    if (strlen(appEUI) != 16 || strlen(appKey) != 32) {
+        Serial.print("invalid appeui/appkey size...");
+        return false;
+    }
+
     if (strstr(this->sendCmd("AT+CJOINMODE=0"), "OK") == NULL)
         return false;
     snprintf(cmd, 28, "AT+CDEVEUI=%s", this->getDevEUI());
@@ -237,7 +254,7 @@ void ASR6501::joinTask() {
         if (this->deviceState == ERROR) {
             Serial.println("LoRaWAN: serial command failed");
             queueStatusMsg("LoRaWAN command", 40, true);
-            this->deviceState == JOINFAIL;
+            this->deviceState = JOINFAIL;
 
         } else if ((this->deviceState == JOINFAIL) && (retryWait <= LORAWAN_JOIN_RETRY_SECS)) {
             if (retryWait == LORAWAN_JOIN_RETRY_SECS) {
@@ -397,29 +414,33 @@ bool ASR6501::begin(HardwareSerial* serialPort, uint8_t rxPin, uint8_t txPin) {
     bool adapterReady = false;
     uint16_t timeout = 0;
 
+    M5.Lcd.clearDisplay(BLUE);
+    M5.Lcd.setTextColor(WHITE);
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+
     if (!prefs.lorawanEnable) {
         Serial.println("LoRaWAN: disabled");
+        M5.Lcd.setCursor(20, 40);
+        M5.Lcd.print("LoRaWAN disabled.");
+        delay(1500);
         return false;
-    } else {
-        M5.Lcd.clearDisplay(BLUE);
-        M5.Lcd.setTextColor(WHITE);
-        M5.Lcd.setFreeFont(&FreeSans12pt7b);
-        M5.Lcd.setCursor(20, 35);
-        M5.Lcd.print("LoRaWAN device settings");
-        M5.Lcd.setCursor(20, 65);
-        M5.Lcd.print("DevEUI:");
-        M5.Lcd.setCursor(20, 95);
-        M5.Lcd.print(this->getDevEUI());
-        M5.Lcd.setCursor(20, 125);
-        M5.Lcd.print("JoinEUI:");
-        M5.Lcd.setCursor(20, 155);
-        M5.Lcd.printf(prefs.lorawanAppEUI);
-        M5.Lcd.setCursor(20, 185);
-        M5.Lcd.print("AppKey:");
-        M5.Lcd.setCursor(20, 215);
-        M5.Lcd.printf("%.16s...", prefs.lorawanAppKey);
-        delay(3000);
     }
+
+    M5.Lcd.setCursor(20, 35);
+    M5.Lcd.print("LoRaWAN device settings");
+    M5.Lcd.setCursor(20, 65);
+    M5.Lcd.print("DevEUI:");
+    M5.Lcd.setCursor(20, 95);
+    M5.Lcd.print(this->getDevEUI());
+    M5.Lcd.setCursor(20, 125);
+    M5.Lcd.print("JoinEUI:");
+    M5.Lcd.setCursor(20, 155);
+    M5.Lcd.printf(prefs.lorawanAppEUI);
+    M5.Lcd.setCursor(20, 185);
+    M5.Lcd.print("AppKey:");
+    M5.Lcd.setCursor(20, 215);
+    M5.Lcd.printf("%.16s...", prefs.lorawanAppKey);
+    delay(3000);
 
     this->serial = serialPort;
     if (this->deviceState != NONE)

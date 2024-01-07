@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -53,7 +53,7 @@
 class GATTServer {
     public:
         GATTServer();
-        void begin();
+        bool begin();
         void notify(sensorReadings_t data);
         ~GATTServer();
     private:
