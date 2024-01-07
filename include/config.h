@@ -28,8 +28,8 @@
 //#define MQTT_USER "username"
 //#define MQTT_PASS "password"
 
-// uncomment to enable BLE GATT server
-#define BLE_SERVER
+// uncomment to enable (optional) Bluetooh LE GATT server
+//#define BLE_SERVER
 
 #define SENSOR_READING_INTERVAL_SECS 5
 #define DISPLAY_DIALOG_TIMEOUT_SECS 5
@@ -45,9 +45,10 @@
 #define TEMP_THRESHOLD_GREEN 20.0
 #define TEMP_THRESHOLD_CYAN 15.0
 
-// uncomment to enable LoRaWAN serial adapter ASR 6501
-#define LORAWAN_APPKEY "CEB39FE91A24CB1C0717E2859D245900"
-#define LORAWAN_APPEUI "0000000000000000"
+// uncomment/set APPKEY/APPEUI to enable (optional) LoRaWAN serial adapter
+// the devEUI is derived from WiFi MAC address, see ASR6501::getDevEUI()
+//#define LORAWAN_APPKEY "CEB39FE91A24CB1C0717E2859D2459AA"
+//#define LORAWAN_APPEUI "0000000000000000"
 #define LORAWAN_INTERVAL_SECS 60
 #define LORAWAN_CONFIRM false
 #define LORAWAN_TX_PIN 14
@@ -55,7 +56,7 @@
 
 #define MANUFACTURER "Fraunhofer IOSB"
 #define FIRMWARE_NAME "RICE-M5Tough-SensorHub"
-#define FIRMWARE_VERSION "1.7rc1"
+#define FIRMWARE_VERSION "1.7"
 
 // uncomment to display Logo at startup
 // requires RGB565 dump as 'const unsigned short logo[]' in logo.h

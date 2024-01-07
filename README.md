@@ -10,7 +10,7 @@ different channels (WiFi/MQTT, Bluetooth LE/GATT and LoRaWAN).
 
 ## Hardware
 
-An [M5Stack TOUGH device](https://docs.m5stack.com/en/core/tough) was procured as test equipment
+A [M5Stack TOUGH device](https://docs.m5stack.com/en/core/tough) was procured as test equipment
 and equipped with a few I2C sensors and a [serial LoRaWAN module](https://docs.m5stack.com/en/unit/lorawan868)
 from M5Stack (ASR6501). Unfortunately, our device did not have an internal RTC backup 
 battery. We placed an additional small LiIon cell (400mAh) in the yellow housing, which feeds
@@ -37,10 +37,11 @@ to  your needs. By default the sensor data is only published via WiFi/MQTT. Most
 options can later be reconfigured under `Setup` in [WiFiManager's](https://github.com/tzapu/WiFiManager)
 configuration portal (see section 'Initial Setup').
 
-Sensor readings from the [BME680](https://www.bosch-sensortec.com/products/environmental-sensors/gas-sensors/bme680/) 
-are derived from Bosch's [BSEC library](https://github.com/boschsensortec/BSEC-Arduino-library/).
-This partially precomplied library is only available for use after accepting its 
-[software license agreement](https://github.com/boschsensortec/BSEC-Arduino-library/blob/master/LICENSE).
+> [!NOTE]
+> Sensor readings from the [BME680](https://www.bosch-sensortec.com/products/environmental-sensors/gas-sensors/bme680/)
+> are derived from Bosch's [BSEC library](https://github.com/boschsensortec/BSEC-Arduino-library/).
+> This partially precomplied library is only available for use after accepting its [software
+> license agreement](https://github.com/boschsensortec/BSEC-Arduino-library/blob/master/LICENSE).
 
 Since the firmware was developed on a MacBook you probably need to adjust the [upload port
 settings](https://docs.platformio.org/en/stable/projectconf/section_env_upload.html)
@@ -48,8 +49,7 @@ in `platformio.ini`. The M5Stack TOUGH device uses a
 [CH9102 Chip](https://docs.m5stack.com/en/core/tough#driver-installation) to connect 
 the ESP32 to USB. You might need to install additional drivers for your OS.
 
-For firmware updates after the initial USB upload you can use the
-[WiFiManager's](https://github.com/tzapu/WiFiManager) OTA option.
+For firmware updates after the initial USB upload you can use the WiFiManager's OTA option.
 
 ## Initial setup
 
@@ -64,8 +64,8 @@ When the M5Stack TOUGH has started to display sensor readings (see photo above),
 is still calibrating and no values for IAQ (air quality index), VOC (volatile organic
 compounds) and eCO2 (estimated value for CO2) are displayed. The first readings should show
 up after about 5 minutes with an IAQ accuracy indicator of 1 (value after slash). When the
-IAQ accuracy  eventually reaches 3, [after exposing it to clean and polluted air for 30 minutes each]
-(https://community.bosch-sensortec.com/t5/MEMS-sensors-forum/Calibration-BME680/td-p/51902), 
+IAQ accuracy  eventually reaches 3, [after exposing it to clean and polluted air for 30 minutes
+each](https://community.bosch-sensortec.com/t5/MEMS-sensors-forum/Calibration-BME680/td-p/51902), 
 the sensor is fully calibrated. It is recommended to initially run a new BME680 sensor
 for 48 hours to "burn it in". The automatically calulated calibration settings from 
 the [BSEC library](https://github.com/boschsensortec/BSEC-Arduino-library/) are saved 

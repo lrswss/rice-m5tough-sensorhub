@@ -34,7 +34,7 @@
 #define BATTERY_LOW_DEEPSLEEP_SECS 300
 
 #define WATCHDOG_TIMEOUT_SEC 90
-#define MEMORY_DEBUG_INTERVAL_SECS 20
+//#define MEMORY_DEBUG_INTERVAL_SECS 20
 
 extern Gesture swipeRight;
 extern bool blockScreen;

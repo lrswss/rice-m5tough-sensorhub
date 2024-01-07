@@ -44,6 +44,7 @@ ASR6501::ASR6501(HardwareSerial* serialPort, uint8_t rxPin, uint8_t txPin) {
     this->msgQueue = xQueueCreate(1, sizeof(sensorReadings_t));
     this->joinTaskHandle = NULL;
     this->queueTaskHandle = NULL;
+    this->SerialLock = NULL;
     this->serial = NULL;
 }
 
@@ -51,7 +52,8 @@ ASR6501::ASR6501(HardwareSerial* serialPort, uint8_t rxPin, uint8_t txPin) {
 ASR6501::~ASR6501() {
     this->deviceState = NONE;
     vQueueDelete(this->msgQueue);
-    vSemaphoreDelete(this->SerialLock);
+    if (this->SerialLock != NULL)
+        vSemaphoreDelete(this->SerialLock);
     if (this->joinTaskHandle != NULL)
         vTaskDelete(this->joinTaskHandle);
     if (this->queueTaskHandle != NULL)
