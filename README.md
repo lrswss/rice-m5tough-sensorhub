@@ -67,7 +67,7 @@ up after about 5 minutes with an IAQ accuracy indicator of 1 (value after slash)
 IAQ accuracy  eventually reaches 3, [after exposing it to clean and polluted air for 30 minutes
 each](https://community.bosch-sensortec.com/t5/MEMS-sensors-forum/Calibration-BME680/td-p/51902), 
 the sensor is fully calibrated. It is recommended to initially run a new BME680 sensor
-for 48 hours to "burn it in". The automatically calulated calibration settings from 
+for 48 hours to "burn it in". The automatically calculated calibration settings from
 the [BSEC library](https://github.com/boschsensortec/BSEC-Arduino-library/) are saved 
 to flash every 2 hours and are reloaded when the M5Stack TOUGH is restarted. At device 
 startup you have the option to reset the previously saved BSEC settings to recalibrate 

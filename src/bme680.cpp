@@ -1,5 +1,5 @@
 /***************************************************************************
-  Copyright (c) 2023 Lars Wessels
+  Copyright (c) 2023-2024 Lars Wessels
 
   This file a part of the "RICE-M5Tough-SensorHub" source code.
   https://github.com/lrswss/rice-m5tough-sensorhub
@@ -233,9 +233,9 @@ bool BME680::setup() {
         Serial.printf("BME680: sensor ready, sample rate 3s, BSEC v%d.%d.%d.%d\n", bsec_version.major,
             bsec_version.minor, bsec_version.major_bugfix, bsec_version.minor_bugfix);
         delay(1500);
+        this->dialogResetBSEC();
         return true;
     }
-    this->dialogResetBSEC();
 }
 
 
